@@ -46,4 +46,4 @@ API responses. Those hit production, so they are read-only by default.
 
 ## Licence
 
-MIT
+MIT. See [LICENSE](./LICENSE).
