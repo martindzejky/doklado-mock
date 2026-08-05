@@ -74,13 +74,33 @@ returns `success: true` together with `code: "APP_NO_MORE_DATA"`.
 
 ## Errors
 
-**Observed.** Application-level failures return **HTTP 200** with a body of exactly
-two keys. There is no `data` key and no `message` key, despite the spec describing
-`message` as an optional human-readable hint:
+**Observed.** Application-level failures return **HTTP 200**. The `message` key the
+spec describes as an optional human-readable hint never appears. Instead there are
+two different failure bodies, and which one you get depends on the endpoint.
+
+The bare form carries nothing but the code. Document listing and export flags use it:
 
 ```json
 { "success": false, "code": "APP_INCORRECT_INPUT_DATA" }
 ```
+
+The detailed form adds a `data.errors` array of English sentences. Issuing uses it:
+
+```json
+{
+  "success": false,
+  "code": "APP_INCORRECT_INPUT_DATA",
+  "data": { "errors": ["Invalid input: expected iban, received undefined"] }
+}
+```
+
+That wording is Zod's, so a Zod layer sits in front of at least the issuing
+endpoints. The messages name the offending field, which makes them the only useful
+diagnostics in the whole API. Do not parse them. They are library output and will
+change when Doklado bumps a dependency.
+
+The mock reproduces both forms per endpoint, because a client that only handles the
+bare shape will crash on the other one.
 
 Observed codes and their triggers:
 
@@ -161,6 +181,10 @@ Line items are usually absent. Across a sample of fifty documents, forty-five ha
 empty `items` array, because scanned and imported documents carry no parsed lines.
 Invoices created through `invoice-issue` do have them.
 
+The document number is `invoiceNumber`, even on receipts, and the request field that
+sets it is `number`. A second field `originalNumber` exists and was empty on every
+document we saw.
+
 ### Item `price` is a line total
 
 **Observed, and a genuine trap.** Issuing with `unitPriceWithoutVat: 2` and
@@ -193,19 +217,36 @@ match and the rate is `1`.
 
 **Observed.** Page size is fixed at 50 and there is no parameter to change it.
 
-`searchAfter` in a response is a **single-element array holding the last document
-id**, not the `[timestamp, id]` pair their spec's example shows. Passing it back
-returns the next page. A deprecated `continuationToken` string comes back in parallel
-and appears to carry the same id.
+`searchAfter` and the deprecated `continuationToken` sit at the **top level of the
+response**, as siblings of `data`, not inside it. `searchAfter` is a
+**single-element array holding the last document id**, not the `[timestamp, id]`
+pair their spec's example shows. Passing it back returns the next page.
+`continuationToken` appears to carry the same id as a bare string.
 
-**Unknown.** What the final page looks like. `searchAfter` might become null or
-absent, or an empty `data` array with `APP_NO_MORE_DATA` might terminate it.
+**Observed.** Paging through 211 documents took six requests and terminates like
+this:
+
+| Request | `data`  | `code`             | `searchAfter`  |
+| ------- | ------- | ------------------ | -------------- |
+| 1 to 4  | 50 docs | absent             | present        |
+| 5       | 12 docs | absent             | present        |
+| 6       | `[]`    | `APP_NO_MORE_DATA` | **key absent** |
+
+Two traps here. A short page does **not** mean the end, so stopping when `data` has
+fewer than 50 entries silently drops the tail. And the terminating response drops
+the `searchAfter` and `continuationToken` keys rather than nulling them, so the
+right loop condition is the presence of the key, not its value. No document
+appeared twice across the six pages.
 
 ### Filters
 
 **Observed.** Doklado accepts `resourceTypes`, `resourceSubType`, `orderBy`,
 `orderByDescending` and `isExported`, and rejects invalid enum values with
 `APP_INCORRECT_INPUT_DATA`.
+
+`orderBy` takes `delivery_date`, `issue_date` or `creation_date`. It does not take
+the field names that appear on documents, so the obvious guess `createdAt` fails.
+`unprocessed-documents` accepts the same parameter minus `issue_date`.
 
 **Unknown.** Whether `isExported` actually filters. Both `true` and `false` returned a
 full page of 50, and documents never carry an `isExported` field, so we could not
@@ -233,19 +274,69 @@ Firestore identifiers.
 **Observed.** An explicit `number` is accepted as given and does not draw from the
 organisation's numbering series.
 
-**Inferred.** When `number` is omitted, the number comes from the numeric code
-configured for that document type, in a `YYYYNNN` form. Real invoices in the account
-look like `2026017`, under a series named _Vystavené faktúry_. We did not test this,
-because it would consume a number from a live sequence.
-
 **Observed.** Doklado derives the variable symbol from the digits of the invoice
 number when `paymentInfo.variableSymbol` is omitted. `TEST-0001` produced
 `vs: "0001"`.
 
-**Observed.** With `paymentType: "card"` and no IBAN, the returned `paymentInfo`
-contains only `bic` and `vs`.
+**Observed.** `paymentType` takes `cash`, `card`, `transfer` or `cash_on_delivery`.
+`transfer` additionally requires `paymentInfo.iban` and fails without it. `card`
+needs nothing extra, and the returned `paymentInfo` then contains only `bic` and
+`vs`.
 
-**Observed.** The `note` field populates both `note` and `customText` on the document.
+**Observed.** The `note` field populates both `note` and `customText` on the
+document.
+
+### Numbering series, and the bug in them
+
+A numbering series is a numeric code in Doklado's vocabulary. You configure them in
+the web interface with a name, a format mask, a reset period and a counter, and you
+tick one as default per invoice type.
+
+**Observed.** Omitting `number` draws from a series and returns the result as
+`invoiceNumber`. A mask of `#RRRRCCC` produced `2026034`, so `RRRR` is the year and
+`CCC` is a counter zero-padded to three digits, concatenated with no separator.
+
+**Observed, and this is the bug.** Doklado issues from the wrong series. We created
+a second series named _TESTOVACÍ RAD_ with the mask `#TEST-#RRRRCCC`, ticked it as
+default for issued invoices, and confirmed after a page reload that the interface
+showed it as the only default and the previous series as unticked. An invoice issued
+with `number` omitted still came back as `2026034`, from the old series. The document
+read back with `accountingSettings.numericCode.name` of _Vystavené faktúry_, naming
+the series it actually used.
+
+So the default flag in the interface does not decide what the API issues from. What
+does decide it is unknown. Creation order and the fact that the old series is the
+one with prior invoices are both plausible, and we have no way to distinguish them
+from outside.
+
+**Consequence for anyone integrating.** You cannot safely test auto-numbering
+against a throwaway series, because Doklado will ignore it and consume a number from
+your live sequence. Either send an explicit `number`, or send
+`accountingSettings.numericCodeId`, which the spec describes as _"can be used to
+generate invoice number, can be omitted if invoice number is filled or organization
+has default numeric code for this invoice type"_. Nothing in the API lists numeric
+codes, so that id has to come out of the web interface by hand.
+
+**Inferred.** `numericCodeId` selects the series explicitly. Untested, because we
+could not obtain an id.
+
+**Observed, and the one merciful behaviour here.** Deleting an issued invoice in the
+web interface rolls the counter back. After deleting invoice `2026034` the series
+returned to next-value 34. Numbers are not burned permanently, which is what makes
+testing against production survivable at all.
+
+### On the quality of all this
+
+Worth saying plainly, because it shapes how much the mock should trust the spec.
+This API is bad. The default-series flag does not work. Errors come in two
+incompatible shapes. `organizationId` means your company in a request and the
+counterparty in a response. Item `price` is a unit price going in and a line total
+coming out. Half the documented response schemas do not match production. The
+spec was clearly written once and left behind.
+
+None of that is fixable from here, so the mock encodes the real behaviour, including
+the bugs. A mock that behaves better than production would hide exactly the problems
+it exists to surface.
 
 ### Payment status
 
@@ -336,11 +427,38 @@ Nothing in the API can create an attachment, so issued invoices never have any.
 
 `POST /v1/unprocessed-documents`
 
-**Observed.** With nothing in the queue, returns `success: true`,
-`code: "APP_NO_MORE_DATA"` and `data: []`, an empty **array**. Their spec describes
-`data` as an object with `totalDocuments`, `notApprovedDocuments` and `documents`.
+**Observed, and genuinely awful.** `data` changes type depending on how many results
+there are. Empty queue gives `success: true`, `code: "APP_NO_MORE_DATA"` and an empty
+**array**. Non-empty gives the **object** their spec describes, with no `code`:
 
-**Unknown.** Which of the two shapes appears when the queue is not empty.
+```json
+{
+  "success": true,
+  "data": {
+    "documents": [
+      {
+        "documentId": "<id>",
+        "createdAt": "2026-08-05T05:42:41.121Z",
+        "deliveryDate": "2026-07-03T00:00:00.000Z",
+        "organizationName": "<supplier>",
+        "totalPrice": 14.99,
+        "currency": "USD",
+        "createdBy": "<uploader email>"
+      }
+    ],
+    "totalDocuments": 1,
+    "notApprovedDocuments": 0
+  },
+  "searchAfter": ["<id>"]
+}
+```
+
+A statically typed client cannot model that as one type. Anything consuming this has
+to branch on the runtime type of `data` before touching it.
+
+Queue entries are far thinner than a `DocumentV2`, seven fields against thirty, and
+`createdBy` exposes the email of whoever uploaded the file. Note `searchAfter` at the
+top level again, same as `/v2/documents`.
 
 Documents can only enter this queue through Doklado's own upload, email forwarding or
 mobile app. There is no API route in.
@@ -360,10 +478,15 @@ represents that configuration in its own config file.
 
 Worth resolving next time there is a reason to touch production:
 
-- How pagination terminates on the final page.
+- Whether `accountingSettings.numericCodeId` overrides the wrong-series bug, and
+  where to find a numeric code id given that no endpoint returns one.
+- What Doklado actually uses to pick a series, since it is not the default flag.
+- Whether reusing an existing invoice number is rejected or silently duplicated.
+- Whether an explicit `number` advances the series counter or leaves it alone.
+- Whether `foreign_exposed` follows from customer country, currency, or both.
+- How VAT rounding works across mixed rates and fractional quantities.
 - Whether `isExported` filters, and why documents never expose the flag they are
   filtered by.
 - Whether date filters behave as documented.
-- What an omitted invoice number produces, and the exact numbering format.
-- The shape of `unprocessed-documents` when the queue is not empty.
-- Whether `foreign_exposed` follows from customer country, currency, or both.
+- Which endpoints return the detailed `data.errors` form and which return the bare
+  one. We have confirmed issuing for the first and document listing for the second.
