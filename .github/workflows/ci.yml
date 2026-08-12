@@ -72,3 +72,22 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Smoke test production build
+        env:
+          PORT: 3000
+          HOST: 127.0.0.1
+        run: |
+          pnpm start &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sSf http://127.0.0.1:3000/ | grep -q doklado-mock; then
+              echo "App responded successfully on attempt $i"
+              kill "$SERVER_PID"
+              exit 0
+            fi
+            echo "Waiting for app to start... ($i)"
+            sleep 1
+          done
+          echo "App did not respond in time"
+          kill "$SERVER_PID"
+          exit 1

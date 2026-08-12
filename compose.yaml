@@ -1,0 +1,10 @@
+services:
+  doklado-mock:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      HOST: 0.0.0.0
+      PORT: '3000'
+    volumes:
+      - ./doklado-mock.config.example.json:/app/doklado-mock.config.json:ro

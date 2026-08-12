@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mockConfigSchema, type MockConfig } from './schema';
@@ -13,14 +13,19 @@ export const EXAMPLE_CONFIG_PATH = join(
   'doklado-mock.config.example.json',
 );
 
+function absolute(path: string): string {
+  return isAbsolute(path) ? path : join(process.cwd(), path);
+}
+
 export function resolveConfigPath(explicit?: string): string {
-  if (explicit) {
-    return isAbsolute(explicit) ? explicit : join(process.cwd(), explicit);
-  }
+  if (explicit) return absolute(explicit);
   if (process.env.DOKLADO_MOCK_CONFIG) {
-    const fromEnv = process.env.DOKLADO_MOCK_CONFIG;
-    return isAbsolute(fromEnv) ? fromEnv : join(process.cwd(), fromEnv);
+    return absolute(process.env.DOKLADO_MOCK_CONFIG);
   }
+  const cwdConfig = join(process.cwd(), 'doklado-mock.config.json');
+  if (existsSync(cwdConfig)) return cwdConfig;
+  const cwdExample = join(process.cwd(), 'doklado-mock.config.example.json');
+  if (existsSync(cwdExample)) return cwdExample;
   return EXAMPLE_CONFIG_PATH;
 }
 

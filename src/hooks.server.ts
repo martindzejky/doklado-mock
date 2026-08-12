@@ -1,8 +1,17 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 
+function isLoopback(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname.startsWith('localhost') ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1'
+  );
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
-  // ignore localhost
-  if (event.url.hostname.startsWith('localhost')) {
+  // ignore loopback (API clients use 127.0.0.1, not only localhost)
+  if (isLoopback(event.url.hostname)) {
     return resolve(event);
   }
 

@@ -9,6 +9,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "start": "node build/index.js",
+    "doklado-mock": "node bin/doklado-mock.js",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
@@ -45,6 +46,9 @@
     "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@11.7.0+sha512.19cc852c120c7125760f2443ee6be0ca5b40f9f50598de1a09a1f177503e010e57c23c77646e01e761de59bf874fb22a3398c33ab9691fc13eb946b6f0f4d620",
+  "bin": {
+    "doklado-mock": "bin/doklado-mock.js"
+  },
   "engines": {
     "node": ">=24"
   },
