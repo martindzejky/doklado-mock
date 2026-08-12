@@ -14,7 +14,7 @@ function help() {
 
 Options:
   --port     Listen port (default: 3000, or PORT)
-  --host     Listen host (default: 0.0.0.0, or HOST)
+  --host     Listen host (default: 127.0.0.1, or HOST)
   --config   Path to config JSON (or DOKLADO_MOCK_CONFIG)
   --help     Show this help
 
@@ -71,7 +71,7 @@ if (!existsSync(server)) {
 }
 
 const port = readArg(argv, '--port') ?? process.env.PORT ?? '3000';
-const host = readArg(argv, '--host') ?? process.env.HOST ?? '0.0.0.0';
+const host = readArg(argv, '--host') ?? process.env.HOST ?? '127.0.0.1';
 const config = readArg(argv, '--config') ?? process.env.DOKLADO_MOCK_CONFIG;
 
 const env = {

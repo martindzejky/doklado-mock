@@ -72,6 +72,20 @@ describe('envelope', () => {
     expect(await response.text()).toContain('SyntaxError');
   });
 
+  test('empty body is bare APP_INCORRECT_INPUT_DATA', async () => {
+    const response = await handleInvoiceIssue(
+      new Request('http://localhost/v1/documents/invoice-issue', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', api_key: API_KEY },
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'APP_INCORRECT_INPUT_DATA',
+    });
+  });
+
   test('missing data wrapper is bare APP_INCORRECT_INPUT_DATA', async () => {
     const response = await handleInvoiceIssue(
       issueRequest({ organizationId: '12345678' }),

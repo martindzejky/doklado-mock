@@ -66,9 +66,39 @@ describe('__mock/seed', () => {
     expect(store.invoices).toHaveLength(1);
     expect(store.invoices[0].invoiceNumber).toBe('2026009');
   });
+
+  test('malformed JSON is 400', async () => {
+    const response = await handleMockSeed(
+      new Request('http://localhost/__mock/seed', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{',
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: 'Invalid JSON',
+    });
+  });
 });
 
 describe('__mock/fault', () => {
+  test('malformed JSON is 400', async () => {
+    const response = await handleMockFault(
+      new Request('http://localhost/__mock/fault', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{',
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: 'Invalid JSON',
+    });
+  });
+
   test('forces an error code for N calls', async () => {
     await handleMockFault(
       new Request('http://localhost/__mock/fault', {

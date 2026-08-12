@@ -24,16 +24,22 @@ const faultSchema = z.object({
   path: z.string(),
   clear: z.boolean().optional(),
   remaining: z.number().int().positive().nullable().optional(),
-  latencyMs: z.number().int().nonnegative().optional(),
+  latencyMs: z.number().int().nonnegative().max(30_000).optional(),
   httpStatus: z.number().int().optional(),
   code: z.string().optional(),
   message: z.string().optional(),
 });
 
-async function readJson(request: Request): Promise<unknown> {
+async function readJson(
+  request: Request,
+): Promise<{ ok: true; value: unknown } | { ok: false }> {
   const text = await request.text();
-  if (!text) return {};
-  return JSON.parse(text);
+  if (!text) return { ok: true, value: {} };
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
 }
 
 export async function handleMockReset(): Promise<Response> {
@@ -42,7 +48,11 @@ export async function handleMockReset(): Promise<Response> {
 }
 
 export async function handleMockSeed(request: Request): Promise<Response> {
-  const parsed = seedSchema.safeParse(await readJson(request));
+  const json = await readJson(request);
+  if (!json.ok) {
+    return jsonResponse({ success: false, error: 'Invalid JSON' }, 400);
+  }
+  const parsed = seedSchema.safeParse(json.value);
   if (!parsed.success) {
     return jsonResponse({ success: false, error: parsed.error.message }, 400);
   }
@@ -73,7 +83,11 @@ export async function handleMockSeed(request: Request): Promise<Response> {
 }
 
 export async function handleMockFault(request: Request): Promise<Response> {
-  const parsed = faultSchema.safeParse(await readJson(request));
+  const json = await readJson(request);
+  if (!json.ok) {
+    return jsonResponse({ success: false, error: 'Invalid JSON' }, 400);
+  }
+  const parsed = faultSchema.safeParse(json.value);
   if (!parsed.success) {
     return jsonResponse({ success: false, error: parsed.error.message }, 400);
   }

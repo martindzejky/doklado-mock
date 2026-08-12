@@ -46,7 +46,8 @@ Docker:
 docker compose up --build
 ```
 
-The inspector is at `/`. Issued invoices and the request log update live.
+The inspector and `__mock` controls have no `api_key`. They are for local use.
+Docker still binds `0.0.0.0` inside the container; the bin defaults to `127.0.0.1`.
 
 ## What it covers
 

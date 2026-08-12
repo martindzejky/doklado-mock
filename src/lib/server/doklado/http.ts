@@ -65,8 +65,11 @@ export async function withDoklado(
   let response: Response;
 
   const fault = store.consumeFault(path);
-  if (fault?.latencyMs) {
-    await new Promise((resolve) => setTimeout(resolve, fault.latencyMs));
+  const latencyMs = fault?.latencyMs;
+  if (latencyMs) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(latencyMs, 30_000)),
+    );
   }
 
   if (fault?.httpStatus) {
@@ -92,37 +95,42 @@ export async function withDoklado(
       response = wrongApiKey();
     } else {
       const text = await request.text();
-      try {
-        requestBody = JSON.parse(text);
-      } catch (error) {
-        response = malformedJson(error);
-        const responseBody = await loggedBody(response);
-        store.log({
-          method: request.method,
-          path,
-          status: response.status,
-          code: codeOf(responseBody),
-          durationMs: Math.round(performance.now() - started),
-          requestBody,
-          responseBody,
-          unknownFields,
-        });
-        return response;
-      }
-
-      if (
-        requestBody === null ||
-        typeof requestBody !== 'object' ||
-        Array.isArray(requestBody) ||
-        !('data' in requestBody)
-      ) {
+      // BEHAVIOUR.md Errors: empty body is bare APP_INCORRECT_INPUT_DATA, not HTML 400.
+      if (text.trim() === '') {
         response = bareError(APP_INCORRECT_INPUT_DATA);
       } else {
-        const result = unwrap(
-          await run((requestBody as { data: unknown }).data),
-        );
-        response = result.response;
-        unknownFields = result.unknownFields;
+        try {
+          requestBody = JSON.parse(text);
+        } catch (error) {
+          response = malformedJson(error);
+          const responseBody = await loggedBody(response);
+          store.log({
+            method: request.method,
+            path,
+            status: response.status,
+            code: codeOf(responseBody),
+            durationMs: Math.round(performance.now() - started),
+            requestBody,
+            responseBody,
+            unknownFields,
+          });
+          return response;
+        }
+
+        if (
+          requestBody === null ||
+          typeof requestBody !== 'object' ||
+          Array.isArray(requestBody) ||
+          !('data' in requestBody)
+        ) {
+          response = bareError(APP_INCORRECT_INPUT_DATA);
+        } else {
+          const result = unwrap(
+            await run((requestBody as { data: unknown }).data),
+          );
+          response = result.response;
+          unknownFields = result.unknownFields;
+        }
       }
     }
   }
