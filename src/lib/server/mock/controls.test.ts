@@ -81,6 +81,21 @@ describe('__mock/seed', () => {
       error: 'Invalid JSON',
     });
   });
+
+  test('invalid now is 400 and leaves the clock alone', async () => {
+    const response = await handleMockSeed(
+      new Request('http://localhost/__mock/seed', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ now: 'not-a-date' }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.error).toContain('Invalid now');
+    expect(store.frozenNow?.toISOString()).toBe('2026-08-05T06:29:21.350Z');
+  });
 });
 
 describe('__mock/fault', () => {

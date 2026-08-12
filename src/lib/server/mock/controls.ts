@@ -7,7 +7,12 @@ import { z } from 'zod';
 import { SEED_INVOICE } from './seed-fixture';
 
 const seedSchema = z.object({
-  now: z.string().optional(),
+  now: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), {
+      message: 'Invalid now',
+    })
+    .optional(),
   series: z
     .array(
       z.object({
