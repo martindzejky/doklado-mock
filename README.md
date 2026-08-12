@@ -36,6 +36,8 @@ empty, because nothing in Doklado's API can populate them.
   published specification is wrong. The mock is built against it.
 - **[spec/swagger.json](./spec/swagger.json)** is a vendored snapshot of Doklado's
   OpenAPI document, checked for drift on a schedule.
+- **[PLAN.full-mock.md](./PLAN.full-mock.md)** is an archived ten-phase plan for a
+  fuller eight-endpoint mock. Kept for later; not the active scope.
 
 ## Credentials
 
