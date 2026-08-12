@@ -6,7 +6,8 @@
   "scripts": {
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "fix": "pnpm format:fix"
+    "fix": "pnpm format:fix",
+    "swagger:drift": "node scripts/check-swagger-drift.ts"
   },
   "devDependencies": {
     "prettier": "^3.9.6"
