@@ -1,0 +1,102 @@
+import { handleInvoiceIssue } from '$lib/server/doklado/handlers';
+import { resetStore, store } from '$lib/server/state/store';
+import { beforeEach, describe, expect, test } from 'vitest';
+import {
+  handleMockFault,
+  handleMockReset,
+  handleMockSeed,
+  handleMockState,
+} from './controls';
+
+const API_KEY = 'test-api-key';
+
+function issue(body: unknown): Promise<Response> {
+  return handleInvoiceIssue(
+    new Request('http://localhost/v1/documents/invoice-issue', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', api_key: API_KEY },
+      body: JSON.stringify({ data: body }),
+    }),
+  );
+}
+
+const invoice = {
+  organizationId: '12345678',
+  type: 'issued_invoice' as const,
+  items: [{ name: 'Item', unitPriceWithoutVat: 10, vatRate: 0, quantity: 1 }],
+  customer: { name: 'Pat', countryCode: 'sk' },
+};
+
+beforeEach(() => {
+  resetStore();
+  store.frozenNow = new Date('2026-08-05T06:29:21.350Z');
+});
+
+describe('__mock/reset', () => {
+  test('clears invoices and restores counters', async () => {
+    await issue(invoice);
+    expect(store.invoices).toHaveLength(1);
+    await handleMockReset();
+    expect(store.invoices).toHaveLength(0);
+    expect(store.organisations[0].series[0].nextCounter).toBe(1);
+  });
+});
+
+describe('__mock/seed', () => {
+  test('loads invoices and counter overrides', async () => {
+    const response = await handleMockSeed(
+      new Request('http://localhost/__mock/seed', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          now: '2026-08-05T06:29:21.350Z',
+          series: [
+            {
+              organizationId: '12345678',
+              exportAbbreviation: 'FA',
+              nextCounter: 9,
+            },
+          ],
+          invoices: [invoice],
+        }),
+      }),
+    );
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(store.invoices).toHaveLength(1);
+    expect(store.invoices[0].invoiceNumber).toBe('2026009');
+  });
+});
+
+describe('__mock/fault', () => {
+  test('forces an error code for N calls', async () => {
+    await handleMockFault(
+      new Request('http://localhost/__mock/fault', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          path: '/v1/documents/invoice-issue',
+          remaining: 1,
+          code: 'APP_INCORRECT_INPUT_DATA',
+        }),
+      }),
+    );
+    const first = await issue(invoice);
+    expect(await first.json()).toEqual({
+      success: false,
+      code: 'APP_INCORRECT_INPUT_DATA',
+    });
+    const second = await issue(invoice);
+    expect((await second.json()).success).toBe(true);
+  });
+});
+
+describe('__mock/state', () => {
+  test('returns invoices, counters, and the request log', async () => {
+    await issue(invoice);
+    const body = await handleMockState().json();
+    expect(body.invoices).toHaveLength(1);
+    expect(body.counters[0].series[0].nextCounter).toBe(2);
+    expect(body.requests[0].path).toBe('/v1/documents/invoice-issue');
+  });
+});
