@@ -4,6 +4,7 @@ import { issueInvoice } from '$lib/server/doklado/issue';
 import { issueInvoiceDataSchema } from '$lib/server/doklado/schemas';
 import { store, type Fault } from '$lib/server/state/store';
 import { z } from 'zod';
+import { SEED_INVOICE } from './seed-fixture';
 
 const seedSchema = z.object({
   now: z.string().optional(),
@@ -63,6 +64,10 @@ export async function handleMockSeed(request: Request): Promise<Response> {
       const payload = (await response.json()) as { success: boolean };
       if (!payload.success) return response;
     }
+  } else if (!body.series) {
+    const response = issueInvoice(SEED_INVOICE);
+    const payload = (await response.json()) as { success: boolean };
+    if (!payload.success) return response;
   }
   return jsonResponse({ success: true, state: store.snapshot() });
 }
