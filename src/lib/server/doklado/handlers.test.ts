@@ -1,6 +1,10 @@
 import { resetStore, store } from '$lib/server/state/store';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { handleCatchAll, handleInvoiceIssue } from './handlers';
+import {
+  handleCatchAll,
+  handleGetInvoicePdf,
+  handleInvoiceIssue,
+} from './handlers';
 
 const API_KEY = 'test-api-key';
 
@@ -253,5 +257,53 @@ describe('catch-alls', () => {
     );
     expect(response.status).toBe(403);
     expect(store.requests[0].path).toBe('/v2/documents');
+  });
+});
+
+function pdfRequest(data: unknown): Request {
+  return new Request('http://localhost/v1/documents/get-invoice-pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', api_key: API_KEY },
+    body: JSON.stringify({ data }),
+  });
+}
+
+describe('get-invoice-pdf', () => {
+  test('returns a capitalised Content-Type envelope', async () => {
+    const issued = await handleInvoiceIssue(
+      issueRequest({
+        data: {
+          ...consumerInvoice,
+          note: 'Ďakujeme za účasť, Ľuboš',
+        },
+      }),
+    );
+    const { data } = await issued.json();
+    const response = await handleGetInvoicePdf(
+      pdfRequest({ organizationId: '12345678', documentId: data.documentId }),
+    );
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(body.data['Content-Type']).toBe('application/pdf');
+    expect(body.data.encoding).toBe('base64');
+    const bytes = Buffer.from(body.data.data, 'base64');
+    expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(bytes.length).toBeGreaterThan(1000);
+  });
+
+  test('same documentId returns byte-identical PDF bytes', async () => {
+    const issued = await handleInvoiceIssue(
+      issueRequest({ data: consumerInvoice }),
+    );
+    const { data } = await issued.json();
+    const payload = {
+      organizationId: '12345678',
+      documentId: data.documentId,
+    };
+    const first = await handleGetInvoicePdf(pdfRequest(payload));
+    const second = await handleGetInvoicePdf(pdfRequest(payload));
+    const a = (await first.json()).data.data;
+    const b = (await second.json()).data.data;
+    expect(a).toBe(b);
   });
 });
