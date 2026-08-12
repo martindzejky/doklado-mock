@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2563eb" />
+    <link rel="icon" href="/favicon.png" />
+    <title>Something went wrong</title>
+    <meta name="description" content="An unexpected error occurred." />
+  </head>
+  <body
+    style="
+      background-color: #ffffff;
+      color: #0f172a;
+      font:
+        18px system-ui,
+        sans-serif;
+      margin: 0;
+      padding: 0;
+    "
+  >
+    <div style="display: grid; place-items: center; height: 100dvh">
+      <div
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          place-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 1rem;
+        "
+      >
+        <p style="margin: 0; padding: 0">
+          Something went wrong.<br />Please try again later.
+        </p>
+
+        <pre style="margin: 0; padding: 0; opacity: 0.5; font-size: 0.75rem">
+Error code: %sveltekit.status%
+%sveltekit.error.message%
+        </pre>
+      </div>
+    </div>
+  </body>
+</html>
