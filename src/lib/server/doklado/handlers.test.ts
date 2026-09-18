@@ -19,7 +19,7 @@ function issueRequest(
   });
 }
 
-const consumerInvoice = {
+const sampleInvoice = {
   organizationId: '12345678',
   type: 'issued_invoice' as const,
   paid: true,
@@ -48,7 +48,7 @@ beforeEach(() => {
 describe('auth', () => {
   test('missing api_key is 403', async () => {
     const response = await handleInvoiceIssue(
-      issueRequest({ data: consumerInvoice }, {}),
+      issueRequest({ data: sampleInvoice }, {}),
     );
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: 'Unauthorized!' });
@@ -56,7 +56,7 @@ describe('auth', () => {
 
   test('wrong api_key is 401', async () => {
     const response = await handleInvoiceIssue(
-      issueRequest({ data: consumerInvoice }, { api_key: 'nope' }),
+      issueRequest({ data: sampleInvoice }, { api_key: 'nope' }),
     );
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({
@@ -102,7 +102,7 @@ describe('required fields', () => {
   test.each(['organizationId', 'type', 'items', 'customer'] as const)(
     'missing %s is a Zod tree',
     async (field) => {
-      const data = { ...consumerInvoice };
+      const data = { ...sampleInvoice };
       delete data[field];
       const response = await handleInvoiceIssue(issueRequest({ data }));
       const body = await response.json();
@@ -116,7 +116,7 @@ describe('required fields', () => {
 describe('happy path', () => {
   test('returns documentId and invoiceNumber from the default series', async () => {
     const response = await handleInvoiceIssue(
-      issueRequest({ data: consumerInvoice }),
+      issueRequest({ data: sampleInvoice }),
     );
     const body = await response.json();
     expect(body).toMatchObject({
@@ -126,9 +126,9 @@ describe('happy path', () => {
     expect(body.data.documentId).toMatch(/^[A-Za-z0-9]{20}$/);
   });
 
-  test('paid card consumer path stores payment and issuer email', async () => {
+  test('paid card path stores payment and issuer email', async () => {
     const response = await handleInvoiceIssue(
-      issueRequest({ data: consumerInvoice }),
+      issueRequest({ data: sampleInvoice }),
     );
     const { data } = await response.json();
     const invoice = store.findInvoice(data.documentId);
@@ -149,7 +149,7 @@ describe('happy path', () => {
   test('unknown fields are ignored and logged as warnings', async () => {
     const response = await handleInvoiceIssue(
       issueRequest({
-        data: { ...consumerInvoice, totallyUnknown: true },
+        data: { ...sampleInvoice, totallyUnknown: true },
       }),
     );
     expect((await response.json()).success).toBe(true);
@@ -159,7 +159,7 @@ describe('happy path', () => {
 
 describe('numbering', () => {
   test('duplicate number returns APP_DOCUMENT_ALREADY_EXISTS', async () => {
-    const data = { ...consumerInvoice, number: 'TEST-0001' };
+    const data = { ...sampleInvoice, number: 'TEST-0001' };
     const first = await handleInvoiceIssue(issueRequest({ data }));
     expect((await first.json()).success).toBe(true);
     const second = await handleInvoiceIssue(issueRequest({ data }));
@@ -173,7 +173,7 @@ describe('numbering', () => {
     const response = await handleInvoiceIssue(
       issueRequest({
         data: {
-          ...consumerInvoice,
+          ...sampleInvoice,
           number: 'TEST-8001',
           accountingSettings: { numericCodeId: 'TESTRADEXPORT' },
         },
@@ -190,7 +190,7 @@ describe('numbering', () => {
     const first = await handleInvoiceIssue(
       issueRequest({
         data: {
-          ...consumerInvoice,
+          ...sampleInvoice,
           accountingSettings: { numericCodeId: 'TESTRADEXPORT' },
         },
       }),
@@ -200,7 +200,7 @@ describe('numbering', () => {
     const explicit = await handleInvoiceIssue(
       issueRequest({
         data: {
-          ...consumerInvoice,
+          ...sampleInvoice,
           number: 'TEST-2026500',
           accountingSettings: { numericCodeId: 'TESTRADEXPORT' },
         },
@@ -211,7 +211,7 @@ describe('numbering', () => {
     const next = await handleInvoiceIssue(
       issueRequest({
         data: {
-          ...consumerInvoice,
+          ...sampleInvoice,
           accountingSettings: { numericCodeId: 'TESTRADEXPORT' },
         },
       }),
@@ -223,7 +223,7 @@ describe('numbering', () => {
     const response = await handleInvoiceIssue(
       issueRequest({
         data: {
-          ...consumerInvoice,
+          ...sampleInvoice,
           accountingSettings: { numericCodeId: 'not-a-series' },
         },
       }),
@@ -238,7 +238,7 @@ describe('numbering', () => {
   test('unknown organisation is APP_ORGANIZATION_NOT_FOUND', async () => {
     const response = await handleInvoiceIssue(
       issueRequest({
-        data: { ...consumerInvoice, organizationId: '00000000' },
+        data: { ...sampleInvoice, organizationId: '00000000' },
       }),
     );
     expect(await response.json()).toEqual({
@@ -252,7 +252,7 @@ describe('validation and stored fields', () => {
   test('transfer without IBAN is a Zod tree with errors and no properties', async () => {
     const response = await handleInvoiceIssue(
       issueRequest({
-        data: { ...consumerInvoice, paymentType: 'transfer' },
+        data: { ...sampleInvoice, paymentType: 'transfer' },
       }),
     );
     expect(response.status).toBe(200);
@@ -268,20 +268,20 @@ describe('validation and stored fields', () => {
   test('explicit number on the default series moves that series counter', async () => {
     const explicit = await handleInvoiceIssue(
       issueRequest({
-        data: { ...consumerInvoice, number: '2026500' },
+        data: { ...sampleInvoice, number: '2026500' },
       }),
     );
     expect((await explicit.json()).data.invoiceNumber).toBe('2026500');
 
     const next = await handleInvoiceIssue(
-      issueRequest({ data: consumerInvoice }),
+      issueRequest({ data: sampleInvoice }),
     );
     expect((await next.json()).data.invoiceNumber).toBe('2026501');
   });
 
   test('omitted dates on the stored invoice equal the frozen creation timestamp', async () => {
     const response = await handleInvoiceIssue(
-      issueRequest({ data: consumerInvoice }),
+      issueRequest({ data: sampleInvoice }),
     );
     const { data } = await response.json();
     const invoice = store.findInvoice(data.documentId);
@@ -294,7 +294,7 @@ describe('validation and stored fields', () => {
   test('date-only issueDate becomes midnight UTC on issuedAt', async () => {
     const response = await handleInvoiceIssue(
       issueRequest({
-        data: { ...consumerInvoice, issueDate: '2026-08-05' },
+        data: { ...sampleInvoice, issueDate: '2026-08-05' },
       }),
     );
     const { data } = await response.json();
@@ -306,7 +306,7 @@ describe('validation and stored fields', () => {
     const response = await handleInvoiceIssue(
       issueRequest({
         data: {
-          ...consumerInvoice,
+          ...sampleInvoice,
           currency: 'CZK',
           items: [
             {
@@ -330,7 +330,7 @@ describe('validation and stored fields', () => {
 
   test('unpaid issue stores paymentStatus not_paid', async () => {
     const response = await handleInvoiceIssue(
-      issueRequest({ data: { ...consumerInvoice, paid: false } }),
+      issueRequest({ data: { ...sampleInvoice, paid: false } }),
     );
     const { data } = await response.json();
     const invoice = store.findInvoice(data.documentId);
@@ -341,7 +341,7 @@ describe('validation and stored fields', () => {
     const response = await handleInvoiceIssue(
       issueRequest({
         data: {
-          ...consumerInvoice,
+          ...sampleInvoice,
           items: [
             {
               name: 'Boundary',
@@ -419,7 +419,7 @@ describe('get-invoice-pdf', () => {
     const issued = await handleInvoiceIssue(
       issueRequest({
         data: {
-          ...consumerInvoice,
+          ...sampleInvoice,
           note: 'Ďakujeme za účasť, Ľuboš',
         },
       }),
@@ -439,7 +439,7 @@ describe('get-invoice-pdf', () => {
 
   test('same documentId returns byte-identical PDF bytes', async () => {
     const issued = await handleInvoiceIssue(
-      issueRequest({ data: consumerInvoice }),
+      issueRequest({ data: sampleInvoice }),
     );
     const { data } = await issued.json();
     const payload = {

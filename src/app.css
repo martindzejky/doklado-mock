@@ -1,9 +1,8 @@
 /*
- * Global stylesheet. Structure mirrors the template convention:
- *   1. @fontsource imports (optional)
- *   2. @import 'tailwindcss'
- *   3. @theme { } — design tokens
- *   4. @layer base — fluid typography, base colors, global focus styles
+ * Global stylesheet:
+ *   1. @import 'tailwindcss'
+ *   2. @theme { } — design tokens
+ *   3. @layer base — fluid typography, base colors, global focus styles
  */
 
 @import 'tailwindcss';

@@ -29,7 +29,7 @@ function isApiPath(pathname: string): boolean {
 
 export const handle: Handle = async ({ event, resolve }) => {
   // Doklado and __mock clients (including Docker service DNS) must not be
-  // bounced to HTTPS or www. The inspector UI still uses the template policy.
+  // bounced to HTTPS or www.
   if (isApiPath(event.url.pathname)) {
     return resolve(event);
   }
@@ -44,11 +44,6 @@ export const handle: Handle = async ({ event, resolve }) => {
     const target = new URL(event.url);
     target.protocol = 'https:';
     return redirect(308, target);
-  }
-
-  // ignore Railway generated domains
-  if (event.url.hostname.endsWith('.up.railway.app')) {
-    return resolve(event);
   }
 
   // force www
