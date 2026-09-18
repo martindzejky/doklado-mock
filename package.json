@@ -4,15 +4,58 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare": "svelte-kit sync; lefthook install || true",
+    "sync": "svelte-kit sync",
+    "dev": "vite dev",
+    "build": "vite build",
+    "start": "node build/index.js",
+    "doklado-mock": "node bin/doklado-mock.js",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "fix": "pnpm format:fix"
+    "lint": "eslint --max-warnings 0 .",
+    "lint:fix": "eslint --fix .",
+    "fix": "pnpm format:fix; pnpm lint:fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "swagger:drift": "node scripts/check-swagger-drift.ts"
   },
   "devDependencies": {
-    "prettier": "^3.9.6"
+    "@eslint/compat": "^2.0.5",
+    "@eslint/js": "^9.39.2",
+    "@sveltejs/adapter-node": "^5.5.7",
+    "@sveltejs/kit": "^2.60.1",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/node": "^25.0.3",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-svelte": "^3.17.0",
+    "globals": "^16.5.0",
+    "lefthook": "^1.11.14",
+    "prettier": "^3.9.6",
+    "prettier-plugin-organize-imports": "^4.3.0",
+    "prettier-plugin-svelte": "^3.4.1",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "svelte": "^5.55.7",
+    "svelte-check": "^4.4.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.58.2",
+    "vite": "^7.3.2",
+    "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@11.7.0+sha512.19cc852c120c7125760f2443ee6be0ca5b40f9f50598de1a09a1f177503e010e57c23c77646e01e761de59bf874fb22a3398c33ab9691fc13eb946b6f0f4d620",
+  "bin": {
+    "doklado-mock": "bin/doklado-mock.js"
+  },
   "engines": {
     "node": ">=24"
+  },
+  "dependencies": {
+    "@fontsource/noto-sans": "^5.3.0",
+    "fontkit": "^2.0.4",
+    "pdf-lib": "^1.17.1",
+    "zod": "^4.4.3"
   }
 }

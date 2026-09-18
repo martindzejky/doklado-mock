@@ -1,0 +1,36 @@
+{
+  "apiKeys": ["test-api-key"],
+  "organisations": [
+    {
+      "id": "12345678",
+      "name": "Example s.r.o.",
+      "country": "SK",
+      "homeCurrency": "EUR",
+      "email": "invoices@example.sk",
+      "bank": {
+        "iban": "SK3112000000198742637541",
+        "bic": "GIBASKBX"
+      },
+      "series": [
+        {
+          "name": "Issued invoices",
+          "mask": "#RRRRCCC",
+          "exportAbbreviation": "FA",
+          "counter": 1,
+          "default": true
+        },
+        {
+          "name": "Test series",
+          "mask": "#TEST-#RRRRCCC",
+          "exportAbbreviation": "TESTRADEXPORT",
+          "counter": 1,
+          "default": false
+        }
+      ]
+    }
+  ],
+  "exchangeRates": {
+    "EUR": 1,
+    "CZK": 24.2
+  }
+}

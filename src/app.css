@@ -1,0 +1,92 @@
+/*
+ * Global stylesheet. Structure mirrors the template convention:
+ *   1. @fontsource imports (optional)
+ *   2. @import 'tailwindcss'
+ *   3. @theme { } — design tokens
+ *   4. @layer base — fluid typography, base colors, global focus styles
+ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* Reset Tailwind's default palette and fonts so the project owns its tokens. */
+  --color-*: initial;
+  --font-*: initial;
+
+  /* Surfaces and text */
+  --color-background: #ffffff;
+  --color-surface: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-foreground: #0f172a;
+  --color-muted: #64748b;
+
+  /* Accent */
+  --color-accent: #2563eb;
+  --color-accent-dark: color-mix(in oklch, var(--color-accent), black 8%);
+  --color-accent-darker: color-mix(in oklch, var(--color-accent), black 16%);
+
+  /* Semantic */
+  --color-error: #dc2626;
+  --color-success: #16a34a;
+
+  /* Layout sizes */
+  --container-main: 1280px;
+  --container-medium: 960px;
+  --container-small: 640px;
+
+  /* Typography (system stack by default) */
+  --font-main:
+    system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-heading: var(--font-main);
+}
+
+@layer base {
+  /*
+   * Fluid typography
+   * 16px font size on 640px viewport
+   * 20px font size on 1280px viewport
+   */
+  html {
+    font-size: 16px;
+    font-size: clamp(16px, calc(16px + 4 * ((100vw - 640px) / 640)), 20px);
+    font-family: var(--font-main);
+  }
+
+  /* Default colors and styles */
+  body {
+    @apply scroll-smooth bg-background text-foreground antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
+  }
+
+  /* Global default outline color for focusable elements so that transitions work */
+  button,
+  [type='button'],
+  [type='submit'],
+  [type='reset'],
+  a,
+  input,
+  textarea,
+  select,
+  summary,
+  [contenteditable],
+  [tabindex]:not([tabindex='-1']) {
+    @apply outline-2 outline-offset-2 outline-transparent outline-solid;
+  }
+
+  /* Global keyboard focus styles */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent outline-solid;
+  }
+
+  :focus:not(:focus-visible) {
+    @apply outline-none;
+  }
+}

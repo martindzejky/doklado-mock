@@ -3,3 +3,6 @@ pnpm-lock.yaml
 
 # upstream snapshot, kept byte-for-byte so drift diffs stay readable
 spec/swagger.json
+
+# assets
+static
