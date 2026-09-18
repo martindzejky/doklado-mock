@@ -17,21 +17,14 @@ six Doklado routes. Behaviour detail lives in [BEHAVIOUR.md](./BEHAVIOUR.md).
    HTML.
 5. Runnable via `npx` and Docker, one env var to point at it.
 
-**After this mock works, not before:** a separate `doklado-library` modeled on
-[superfaktura-library](https://github.com/martindzejky/superfaktura-library), then
-one swap in [blizsiekdetom.sk](https://github.com/rozhratko/blizsiekdetom.sk) that
-replaces SuperFaktura. Order is mock, library, consumer swap.
+## Typical integration
 
-## Consumer
+A typical client creates one paid card invoice with a single line item, then
+downloads the PDF. It reads only the invoice id and the PDF bytes. Create is not
+idempotent; clients persist the id before the PDF step.
 
-Only call site today: `blizsiekdetom.sk` → `src/lib/jobs/create-invoice.server.ts`.
-
-Creates one paid card invoice with a single line item, then downloads the PDF. Reads
-only the invoice id and the PDF bytes. Create is not idempotent; the app persists
-the id before the PDF step.
-
-The mock still does full issuing semantics. A stub that only returns an id would lie
-to the next library and to anyone poking the UI.
+The mock still does full issuing semantics. A stub that only returns an id would
+lie to anyone poking the UI.
 
 ## Doklado endpoints
 
@@ -106,7 +99,7 @@ Not Doklado API. JSON, no `api_key`. Taken from the full plan for this slice.
 | `GET /__mock/events` | SSE of store changes for the UI                                                          |
 
 Tests should prefer `__mock/state` and `__mock/reset` over parsing HTML. Faults are
-how a future library exercises retries without waiting for real Doklado to break.
+how tests exercise retries without waiting for real Doklado to break.
 
 ## Inspector UI
 
@@ -180,12 +173,6 @@ points the `+server.ts` files call from Vitest.
   `master`): adapter-node, Vite, TS, ESLint, lefthook, CI, Tailwind `@theme` in
   `src/app.css`, `TEMPLATE.md`. No JSON API routes to copy; the HTTP layer here is
   new.
-- [superfaktura-library](https://github.com/martindzejky/superfaktura-library)
-  (public): Zod domain / wire / adapter layering for the later `doklado-library`,
-  not for this mock's guts.
-- [blizsiekdetom.sk](https://github.com/rozhratko/blizsiekdetom.sk) (private): the
-  consumer summary above is authoritative if the repo is unreachable. Call site:
-  `src/lib/jobs/create-invoice.server.ts`.
 
 BEHAVIOUR.md wins over the vendored swagger. `spec/swagger.json` is for drift
 detection and the lean contradiction registry.
@@ -220,7 +207,7 @@ Ship `doklado-mock.config.example.json` with one organisation so zero-config wor
   worked examples
 - Handler tests through the same domain entry points the routes call: auth, happy
   path issue, required-field matrix, duplicate number, mask checks with
-  `numericCodeId`, paid/card path matching the consumer, PDF envelope, byte-identical
+  `numericCodeId`, paid/card path, PDF envelope, byte-identical
   re-download
 - Isolate with `__mock/reset` or a direct store reset; use seed and fault when they
   clarify the case
@@ -251,7 +238,7 @@ agents do not invent the name or visibility.
 4. **invoice-issue.** `+server.ts` for issue, shared auth/envelope/logging,
    catch-alls, unknown-field warnings. First client-reachable Doklado path.
 5. **pdf.** Renderer + `get-invoice-pdf/+server.ts`, identical re-download,
-   issue→PDF integration tests. After this the consumer job shape can run end to
+   issue→PDF integration tests. After this, issue and PDF work together end to
    end.
 6. **mock-controls.** `__mock/reset|seed|fault|state|events` and tests that use
    them.

@@ -3,7 +3,7 @@
 **Status.** Archived on 2026-08-12. Ten phases for an eight-endpoint mock with
 inspector UI, Docker packaging, and conformance tests.
 
-**Current direction.** Scope shrank to what `blizsiekdetom.sk` needs:
+**Current direction.** Scope shrank to
 `POST /v1/documents/invoice-issue` and `POST /v1/documents/get-invoice-pdf`. Keep
 [BEHAVIOUR.md](./BEHAVIOUR.md) and this plan if we expand later. This file is not the
 active brief until someone revives the full mock on purpose.
@@ -32,9 +32,8 @@ Each phase is its own PR. Build, review, merge, then move on. Do not stack phase
    drops the key on the terminating empty page. First phase a real client can hit.
 5. **pdf.** `pdf-lib`, `fontkit`, embedded Noto Sans for Slovak diacritics.
    Wire `get-invoice-pdf` with the base64 envelope and capitalised `Content-Type`.
-   Same invoice id must return byte-identical PDF bytes, which the
-   `blizsiekdetom.sk` job worker needs on mid-job resume. After this, that app can
-   run against the mock end to end.
+   Same invoice id must return byte-identical PDF bytes so a client can resume
+   a failed download. After this, issue and PDF work together end to end.
 6. **remaining-endpoints.** `setExported` with its `results` wrapper,
    `attachments/get` as a flat array, `unprocessed-documents` with
    array-versus-object `data`, and `send-invoice-by-email` as a recorded no-op.
@@ -48,7 +47,7 @@ Each phase is its own PR. Build, review, merge, then move on. Do not stack phase
    controls to inject unprocessed documents and attachments. Fix the README line
    that said those queues stay empty.
 10. **packaging.** `npx doklado-mock` bin entry, Dockerfile and published image,
-    docker-compose snippet like maildev in `blizsiekdetom.sk`, README usage docs.
+    docker-compose snippet, README usage docs.
 
 ---
 
@@ -91,35 +90,26 @@ At the time of writing, research and tooling only. No application code.
 
 Do not re-probe production without asking. Those calls create real invoices.
 
-## The consumer that has to work
+## Typical integration
 
-`blizsiekdetom.sk` (<https://github.com/rozhratko/blizsiekdetom.sk>, private, local
-clone at `~/Projects/blizsiekdetom.sk`) is migrating from SuperFaktura to Doklado.
-It is why this mock exists, and it is a much smaller consumer than the full API
-suggests. The repo is private, so treat the summary below as authoritative if you
-cannot open it.
+A typical client creates one invoice with a single line item, then downloads that
+invoice's PDF. It reads only the invoice id and the PDF bytes. Everything else in
+the response is ignored.
 
-One file talks to the invoicing API: `src/lib/jobs/create-invoice.server.ts`, from a
-background job worker. It creates one invoice with a single line item, then
-downloads that invoice's PDF. It reads only the invoice id and the PDF bytes.
-Everything else in the response is ignored.
+Two constraints fall out of that:
 
-Two constraints fall out of that job:
-
-- The worker retries up to three times and **resumes mid-job**, reusing an invoice
-  id it already persisted. Fetching the PDF for the same id twice must return
-  byte-identical output.
-- Create is not idempotent at the API. The app stops double-creation by persisting
+- Clients retry and can **resume mid-job**, reusing an invoice id they already
+  persisted. Fetching the PDF for the same id twice must return byte-identical
+  output.
+- Create is not idempotent at the API. Clients stop double-creation by persisting
   the id before the PDF step. The mock must not invent idempotency the real API
   does not have.
 
-Its `docker-compose.yml` runs postgres, maildev, and umami. SuperFaktura is external
-via `SUPERFAKTURA_API_URL`. Doklado mock should slot in the same way: a compose
-service plus one env var.
+The mock should slot in the way maildev does: a compose service plus one env var.
 
 ## Reference repositories
 
-Read these. Do not invent their layout. Both public repos use `master`, not `main`.
+Do not invent the template's layout. It uses `master`, not `main`.
 
 **<https://github.com/martindzejky/sveltekit-template>** (public) is the base.
 Copy its tooling:
@@ -141,20 +131,11 @@ It has **no** JSON API routes, only two GET-only `+server.ts` files for `robots.
 and `sitemap.xml`. The HTTP layer here is new work. No Dockerfile in that template
 either.
 
-**<https://github.com/martindzejky/superfaktura-library>** (public) is the closest
-prior art on the client side: Zod schemas split into domain types, API wire types,
-and adapters, with a typed error taxonomy. Copy the layering idea, not the code.
-
-**<https://github.com/rozhratko/blizsiekdetom.sk>** is the consumer and it is
-**private**. A cloud agent probably cannot read it. The consumer section above is
-enough. The one file that matters is `src/lib/jobs/create-invoice.server.ts`.
-
 Doklado docs: <https://api-doc.doklado.sk>. Raw OpenAPI:
 <https://api-doc.doklado.sk/swagger.json>. Build against the vendored snapshot in
 this repo. Fetching the live file is the drift check's job, not the
 implementation's.
 
-A separate `doklado-library` client package comes later, in its own repo. Not here.
 Tests in this repo use a minimal internal test client.
 
 ## How we work: one phase, one PR
@@ -294,10 +275,9 @@ at all.
 Latin-2 and the PDF standard fonts only reach CP1252. Output is a plausible
 one-page invoice, not a facsimile.
 
-Hard requirement from the consumer: `create-invoice.server.ts` in
-`blizsiekdetom.sk` resumes a failed job and re-downloads the PDF for an id it
-already has. Same id, same bytes. The renderer takes its clock and any randomness
-from the store rather than inventing them per call.
+Same id, same bytes. A client can resume a failed download and re-fetch the PDF
+for an id it already has. The renderer takes its clock and any randomness from
+the store rather than inventing them per call.
 
 ## UI
 
@@ -323,7 +303,7 @@ comes from the template. Get approval before installing any of these.
 
 ## Conventions and gates
 
-Match the toolchain the reference repos already use.
+Match the toolchain sveltekit-template already uses.
 
 - Node 24, pnpm 11.7.0 pinned in `packageManager`, run via Corepack. Use
   `corepack pnpm ...` if the machine's own pnpm is older.

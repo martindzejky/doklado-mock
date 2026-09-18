@@ -19,7 +19,7 @@ Early. Behaviour is documented. The server is not built yet. Active plan:
 
 ## What it covers
 
-Two Doklado endpoints, matching what `blizsiekdetom.sk` needs:
+Two Doklado endpoints:
 
 - Issue an invoice
 - Fetch that invoice's PDF
