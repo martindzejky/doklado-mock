@@ -52,7 +52,7 @@ export type StoredInvoice = {
   internalNote: string;
   paymentType: string;
   paymentInfo: PaymentInfo;
-  paymentStatus: 'paid' | 'unpaid' | '';
+  paymentStatus: 'paid' | 'not_paid' | 'in_progress' | 'partially_paid' | '';
   accountingSettings: {
     numericCode: {
       name: string;
@@ -83,6 +83,7 @@ export type Fault = {
   httpStatus?: number;
   code?: string;
   message?: string;
+  afterSuccess?: boolean;
 };
 
 export type StoreEvent = {

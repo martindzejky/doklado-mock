@@ -33,6 +33,7 @@ const faultSchema = z.object({
   httpStatus: z.number().int().optional(),
   code: z.string().optional(),
   message: z.string().optional(),
+  afterSuccess: z.boolean().optional(),
 });
 
 async function readJson(
@@ -106,6 +107,7 @@ export async function handleMockFault(request: Request): Promise<Response> {
       httpStatus: body.httpStatus,
       code: body.code,
       message: body.message,
+      afterSuccess: body.afterSuccess,
     };
     store.faults.push(fault);
   }

@@ -1,4 +1,4 @@
-import { store } from '$lib/server/state/store';
+import { store, type Fault } from '$lib/server/state/store';
 import { jsonResponse } from './envelope';
 import {
   APP_INCORRECT_INPUT_DATA,
@@ -54,6 +54,50 @@ function unwrap(
   };
 }
 
+function hasInjectedError(fault: Fault | undefined): fault is Fault {
+  return Boolean(fault?.httpStatus || fault?.code);
+}
+
+function faultResponse(fault: Fault): Response {
+  if (fault.httpStatus) {
+    return jsonResponse(
+      fault.code
+        ? {
+            success: false,
+            code: fault.code,
+            ...(fault.message ? { message: fault.message } : {}),
+          }
+        : { error: 'fault' },
+      fault.httpStatus,
+    );
+  }
+  return fault.message && fault.code
+    ? messageError(fault.message, fault.code)
+    : bareError(fault.code ?? 'fault');
+}
+
+async function sleep(latencyMs: number): Promise<void> {
+  await new Promise((resolve) =>
+    setTimeout(resolve, Math.min(latencyMs, 30_000)),
+  );
+}
+
+async function isSuccessEnvelope(response: Response): Promise<boolean> {
+  if (response.status !== 200) return false;
+  const type = response.headers.get('content-type') ?? '';
+  if (!type.includes('json')) return false;
+  try {
+    const body = await response.clone().json();
+    return Boolean(
+      body &&
+      typeof body === 'object' &&
+      (body as { success?: unknown }).success === true,
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function withDoklado(
   request: Request,
   run: DokladoRun,
@@ -66,27 +110,14 @@ export async function withDoklado(
 
   const fault = store.consumeFault(path);
   const latencyMs = fault?.latencyMs;
-  if (latencyMs) {
-    await new Promise((resolve) =>
-      setTimeout(resolve, Math.min(latencyMs, 30_000)),
-    );
+  const afterSuccess = fault?.afterSuccess === true;
+
+  if (latencyMs && !afterSuccess) {
+    await sleep(latencyMs);
   }
 
-  if (fault?.httpStatus) {
-    response = jsonResponse(
-      fault.code
-        ? {
-            success: false,
-            code: fault.code,
-            ...(fault.message ? { message: fault.message } : {}),
-          }
-        : { error: 'fault' },
-      fault.httpStatus,
-    );
-  } else if (fault?.code) {
-    response = fault.message
-      ? messageError(fault.message, fault.code)
-      : bareError(fault.code);
+  if (!afterSuccess && hasInjectedError(fault)) {
+    response = faultResponse(fault);
   } else {
     const apiKey = request.headers.get('api_key');
     if (apiKey === null || apiKey === '') {
@@ -131,6 +162,13 @@ export async function withDoklado(
           response = result.response;
           unknownFields = result.unknownFields;
         }
+      }
+    }
+
+    if (afterSuccess && (await isSuccessEnvelope(response))) {
+      if (latencyMs) await sleep(latencyMs);
+      if (hasInjectedError(fault)) {
+        response = faultResponse(fault);
       }
     }
   }

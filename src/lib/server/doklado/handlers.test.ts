@@ -248,6 +248,118 @@ describe('numbering', () => {
   });
 });
 
+describe('validation and stored fields', () => {
+  test('transfer without IBAN is a Zod tree with errors and no properties', async () => {
+    const response = await handleInvoiceIssue(
+      issueRequest({
+        data: { ...consumerInvoice, paymentType: 'transfer' },
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.code).toBe('APP_INCORRECT_INPUT_DATA');
+    expect(body.data.errors).toContain(
+      'Invalid input: expected iban, received undefined',
+    );
+    expect(body.data.properties).toBeUndefined();
+  });
+
+  test('explicit number on the default series moves that series counter', async () => {
+    const explicit = await handleInvoiceIssue(
+      issueRequest({
+        data: { ...consumerInvoice, number: '2026500' },
+      }),
+    );
+    expect((await explicit.json()).data.invoiceNumber).toBe('2026500');
+
+    const next = await handleInvoiceIssue(
+      issueRequest({ data: consumerInvoice }),
+    );
+    expect((await next.json()).data.invoiceNumber).toBe('2026501');
+  });
+
+  test('omitted dates on the stored invoice equal the frozen creation timestamp', async () => {
+    const response = await handleInvoiceIssue(
+      issueRequest({ data: consumerInvoice }),
+    );
+    const { data } = await response.json();
+    const invoice = store.findInvoice(data.documentId);
+    expect(invoice?.issuedAt).toBe('2026-08-05T06:29:21.350Z');
+    expect(invoice?.dueDate).toBe('2026-08-05T06:29:21.350Z');
+    expect(invoice?.deliveryDate).toBe('2026-08-05T06:29:21.350Z');
+    expect(invoice?.taxPointDate).toBe('2026-08-05T06:29:21.350Z');
+  });
+
+  test('date-only issueDate becomes midnight UTC on issuedAt', async () => {
+    const response = await handleInvoiceIssue(
+      issueRequest({
+        data: { ...consumerInvoice, issueDate: '2026-08-05' },
+      }),
+    );
+    const { data } = await response.json();
+    const invoice = store.findInvoice(data.documentId);
+    expect(invoice?.issuedAt).toBe('2026-08-05T00:00:00.000Z');
+  });
+
+  test('1 CZK invoice in the EUR org stores the converted home total', async () => {
+    const response = await handleInvoiceIssue(
+      issueRequest({
+        data: {
+          ...consumerInvoice,
+          currency: 'CZK',
+          items: [
+            {
+              name: 'Koruna',
+              unitPriceWithoutVat: 1,
+              vatRate: 0,
+              quantity: 1,
+            },
+          ],
+        },
+      }),
+    );
+    const { data } = await response.json();
+    const invoice = store.findInvoice(data.documentId);
+    expect(invoice?.currency).toBe('CZK');
+    expect(invoice?.totalPrice).toBe(1);
+    expect(invoice?.exchangeRate).toBe(24.2);
+    expect(invoice?.otherCurrency).toBe('EUR');
+    expect(invoice?.otherTotalPrice).toBe(0.04);
+  });
+
+  test('unpaid issue stores paymentStatus not_paid', async () => {
+    const response = await handleInvoiceIssue(
+      issueRequest({ data: { ...consumerInvoice, paid: false } }),
+    );
+    const { data } = await response.json();
+    const invoice = store.findInvoice(data.documentId);
+    expect(invoice?.paymentStatus).toBe('not_paid');
+  });
+
+  test('decimal-boundary line total is stored half-up', async () => {
+    const response = await handleInvoiceIssue(
+      issueRequest({
+        data: {
+          ...consumerInvoice,
+          items: [
+            {
+              name: 'Boundary',
+              unitPriceWithoutVat: 1.005,
+              vatRate: 0,
+              quantity: 1,
+            },
+          ],
+        },
+      }),
+    );
+    const { data } = await response.json();
+    const invoice = store.findInvoice(data.documentId);
+    expect(invoice?.totalPrice).toBe(1.01);
+    expect(invoice?.items[0].price).toBe(1.01);
+  });
+});
+
 describe('catch-alls', () => {
   test('unknown v1 path is logged and returns Doklado 403', async () => {
     const response = await handleCatchAll(
@@ -272,6 +384,26 @@ describe('catch-alls', () => {
     expect(response.status).toBe(403);
     expect(store.requests[0].path).toBe('/v2/documents');
   });
+
+  test.each([
+    ['GET', '/v1/documents/invoice-issue'],
+    ['PUT', '/v1/documents/invoice-issue'],
+    ['GET', '/v1/documents/get-invoice-pdf'],
+    ['PATCH', '/v1/documents/get-invoice-pdf'],
+  ] as const)(
+    '%s %s is logged and returns Doklado 403',
+    async (method, path) => {
+      const response = await handleCatchAll(
+        new Request(`http://localhost${path}`, {
+          method,
+          headers: { api_key: API_KEY },
+        }),
+      );
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: 'Unauthorized!' });
+      expect(store.requests[0]).toMatchObject({ method, path, status: 403 });
+    },
+  );
 });
 
 function pdfRequest(data: unknown): Request {

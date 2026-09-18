@@ -114,6 +114,34 @@ describe('__mock/fault', () => {
     });
   });
 
+  test('afterSuccess fails the response after creating the invoice', async () => {
+    await handleMockFault(
+      new Request('http://localhost/__mock/fault', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          path: '/v1/documents/invoice-issue',
+          remaining: 1,
+          afterSuccess: true,
+          code: 'APP_INCORRECT_INPUT_DATA',
+        }),
+      }),
+    );
+    const response = await issue(invoice);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'APP_INCORRECT_INPUT_DATA',
+    });
+    expect(store.invoices).toHaveLength(1);
+    expect(store.invoices[0].invoiceNumber).toBe('2026001');
+    expect(store.organisations[0].series[0].nextCounter).toBe(2);
+
+    const retry = await issue(invoice);
+    expect((await retry.json()).success).toBe(true);
+    expect(store.invoices).toHaveLength(2);
+  });
+
   test('forces an error code for N calls', async () => {
     await handleMockFault(
       new Request('http://localhost/__mock/fault', {

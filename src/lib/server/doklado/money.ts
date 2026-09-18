@@ -1,14 +1,16 @@
 /** BEHAVIOUR.md Item `price` is a gross line total. */
 
 export function roundHalfUp(value: number, decimals = 2): number {
-  const factor = 10 ** decimals;
-  const scaled = value * factor;
-  const sign = scaled < 0 ? -1 : 1;
-  const abs = Math.abs(scaled);
-  const floored = Math.floor(abs + Number.EPSILON);
-  const fraction = abs - floored;
-  const rounded = fraction >= 0.5 - Number.EPSILON ? floored + 1 : floored;
-  return (sign * rounded) / factor;
+  if (!Number.isFinite(value)) return value;
+  const sign = value < 0 ? -1 : 1;
+  const abs = Math.abs(value);
+  // Shift via a decimal string so 1.005 and 10.075 hit the half-up boundary
+  // instead of a binary float just below it.
+  const shifted = Number(`${abs}e${decimals}`);
+  const integer = Math.floor(shifted);
+  const fraction = shifted - integer;
+  const rounded = fraction >= 0.5 ? integer + 1 : integer;
+  return sign * Number(`${rounded}e-${decimals}`);
 }
 
 export type IssueItemInput = {

@@ -97,13 +97,13 @@ BEHAVIOUR.md pointer. Tests keep those explicit.
 
 Not Doklado API. JSON, no `api_key`. Taken from the full plan for this slice.
 
-| Path                 | Role                                                                                     |
-| -------------------- | ---------------------------------------------------------------------------------------- |
-| `POST /__mock/reset` | Clear documents, request log, faults; counters back to config                            |
-| `POST /__mock/seed`  | Load invoice fixtures and/or series counter overrides                                    |
-| `POST /__mock/fault` | Force error code, HTTP status, or latency on a Doklado path for N calls or until cleared |
-| `GET /__mock/state`  | Snapshot: invoices, counters, recent request log, active faults                          |
-| `GET /__mock/events` | SSE of store changes for the UI                                                          |
+| Path                 | Role                                                                                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /__mock/reset` | Clear documents, request log, faults; counters back to config                                                                                                         |
+| `POST /__mock/seed`  | Load invoice fixtures and/or series counter overrides                                                                                                                 |
+| `POST /__mock/fault` | Force error code, HTTP status, or latency on a Doklado path for N calls or until cleared. `afterSuccess` creates the invoice first, then delays or fails the response |
+| `GET /__mock/state`  | Snapshot: invoices, counters, recent request log, active faults                                                                                                       |
+| `GET /__mock/events` | SSE of store changes for the UI                                                                                                                                       |
 
 Tests should prefer `__mock/state` and `__mock/reset` over parsing HTML. Faults are
 how a future library exercises retries without waiting for real Doklado to break.
@@ -167,8 +167,9 @@ flowchart TD
 ```
 
 Shared logic lives under `$lib/server`. Route files stay thin. `hooks.server.ts`
-keeps the template localhost/https/www policy only. It does not dispatch Doklado
-paths.
+keeps the template localhost/https/www policy for the inspector. `/v1`, `/v2`,
+and `/__mock` skip those redirects so Docker service hostnames keep working. The
+hook does not dispatch Doklado paths.
 
 An earlier draft invented a parallel `(Request) => Response` router so tests could
 skip Kit. Dropped. Unit-test `$lib/server` directly; hit the same domain entry
@@ -203,7 +204,7 @@ detection and the lean contradiction registry.
   log)
 - `src/lib/server/config/`
 - `src/lib/server/pdf/`
-- `src/hooks.server.ts` template URL policy only
+- `src/hooks.server.ts` template URL policy for the inspector; API paths skip it
 - `scripts/check-swagger-drift.ts`
 
 ## Config

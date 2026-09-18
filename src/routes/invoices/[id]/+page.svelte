@@ -25,7 +25,7 @@
     </div>
     <div>
       <dt class="text-muted">Paid</dt>
-      <dd>{invoice.paymentStatus || 'unpaid'}</dd>
+      <dd>{invoice.paymentStatus || 'not_paid'}</dd>
     </div>
     <div>
       <dt class="text-muted">Created</dt>

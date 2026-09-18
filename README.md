@@ -67,13 +67,13 @@ A fuller eight-endpoint mock was designed and then shelved. See
 
 No `api_key`. JSON only.
 
-| Path                 | Role                                 |
-| -------------------- | ------------------------------------ |
-| `POST /__mock/reset` | Clear state; counters back to config |
-| `POST /__mock/seed`  | Load fixtures and/or series counters |
-| `POST /__mock/fault` | Force an error, status, or latency   |
-| `GET /__mock/state`  | Snapshot for tests                   |
-| `GET /__mock/events` | SSE of store changes                 |
+| Path                 | Role                                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `POST /__mock/reset` | Clear state; counters back to config                                                                                  |
+| `POST /__mock/seed`  | Load fixtures and/or series counters                                                                                  |
+| `POST /__mock/fault` | Force an error, status, or latency. `afterSuccess: true` creates the invoice first, then delays or fails the response |
+| `GET /__mock/state`  | Snapshot for tests                                                                                                    |
+| `GET /__mock/events` | SSE of store changes                                                                                                  |
 
 ## Documentation
 

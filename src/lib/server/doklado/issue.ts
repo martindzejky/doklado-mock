@@ -137,7 +137,7 @@ export function issueInvoice(data: IssueInvoiceData): Response {
     internalNote: data.internalNote ?? '',
     paymentType,
     paymentInfo,
-    paymentStatus: data.paid ? 'paid' : 'unpaid',
+    paymentStatus: data.paid ? 'paid' : 'not_paid',
     accountingSettings: {
       numericCode: {
         name: series.name,

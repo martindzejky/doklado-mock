@@ -33,7 +33,7 @@
               </span>
             </div>
             <div class="flex gap-2 text-xs text-muted">
-              <span>{invoice.paymentStatus || 'unpaid'}</span>
+              <span>{invoice.paymentStatus || 'not_paid'}</span>
               <span>{invoice.createdAt}</span>
             </div>
           </a>

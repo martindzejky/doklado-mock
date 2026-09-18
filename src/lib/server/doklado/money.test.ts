@@ -7,6 +7,12 @@ describe('roundHalfUp', () => {
     expect(roundHalfUp(3.56592)).toBe(3.57);
     expect(roundHalfUp(15.519)).toBe(15.52);
   });
+
+  test('decimal-boundary halves round away from zero', () => {
+    expect(roundHalfUp(1.005)).toBe(1.01);
+    expect(roundHalfUp(10.075)).toBe(10.08);
+    expect(roundHalfUp(-1.005)).toBe(-1.01);
+  });
 });
 
 describe('priceItems', () => {
@@ -52,6 +58,19 @@ describe('priceItems', () => {
         isTaxExempt: false,
       },
     ]);
+  });
+
+  test('invoice line at a decimal boundary rounds half-up', () => {
+    const result = priceItems([
+      {
+        name: 'boundary',
+        unitPriceWithoutVat: 10.075,
+        vatRate: 0,
+        quantity: 1,
+      },
+    ]);
+    expect(result.items[0].price).toBe(10.08);
+    expect(result.totalPrice).toBe(10.08);
   });
 
   test('zero rate still isTaxExempt false', () => {
