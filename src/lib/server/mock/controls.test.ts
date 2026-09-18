@@ -2,6 +2,7 @@ import { handleInvoiceIssue } from '$lib/server/doklado/handlers';
 import { resetStore, store } from '$lib/server/state/store';
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
+  handleMockEvents,
   handleMockFault,
   handleMockReset,
   handleMockSeed,
@@ -80,6 +81,25 @@ describe('__mock/seed', () => {
       success: false,
       error: 'Invalid JSON',
     });
+  });
+
+  test('failed invoice seed returns the error body and rolls back', async () => {
+    const response = await handleMockSeed(
+      new Request('http://localhost/__mock/seed', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          invoices: [invoice, { ...invoice, organizationId: '00000000' }],
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'APP_ORGANIZATION_NOT_FOUND',
+    });
+    expect(store.invoices).toHaveLength(0);
+    expect(store.organisations[0].series[0].nextCounter).toBe(1);
   });
 
   test('invalid now is 400 and leaves the clock alone', async () => {
@@ -161,6 +181,33 @@ describe('__mock/fault', () => {
     });
     const second = await issue(invoice);
     expect((await second.json()).success).toBe(true);
+  });
+});
+
+describe('__mock/events', () => {
+  test('an aborted inspector does not fail later invoice issues', async () => {
+    const abort = new AbortController();
+    const events = handleMockEvents(
+      new Request('http://localhost/__mock/events', { signal: abort.signal }),
+    );
+    const reader = events.body?.getReader();
+    abort.abort();
+    await reader?.cancel();
+    const response = await issue(invoice);
+    expect((await response.json()).success).toBe(true);
+    expect(store.invoices).toHaveLength(1);
+  });
+});
+
+describe('store listeners', () => {
+  test('a throwing subscriber is dropped and does not fail issue', async () => {
+    const unsubscribe = store.subscribe(() => {
+      throw new Error('stale inspector');
+    });
+    const response = await issue(invoice);
+    unsubscribe();
+    expect((await response.json()).success).toBe(true);
+    expect(store.invoices).toHaveLength(1);
   });
 });
 

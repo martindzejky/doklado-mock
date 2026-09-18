@@ -155,7 +155,13 @@ class MockStore {
 
   emit(reason: string): void {
     const event: StoreEvent = { type: 'change', reason };
-    for (const listener of this.listeners) listener(event);
+    for (const listener of [...this.listeners]) {
+      try {
+        listener(event);
+      } catch {
+        this.listeners.delete(listener);
+      }
+    }
   }
 
   findOrg(id: string): OrgState | undefined {

@@ -53,6 +53,29 @@ export async function handleMockReset(): Promise<Response> {
   return jsonResponse({ success: true });
 }
 
+function restoreSeed(snapshot: {
+  frozenNow: Date | null;
+  invoices: typeof store.invoices;
+  counters: number[][];
+}): void {
+  store.frozenNow = snapshot.frozenNow;
+  store.invoices = snapshot.invoices;
+  store.organisations.forEach((org, orgIndex) => {
+    org.series.forEach((series, seriesIndex) => {
+      series.nextCounter = snapshot.counters[orgIndex][seriesIndex];
+    });
+  });
+}
+
+async function issuedOrError(
+  data: Parameters<typeof issueInvoice>[0],
+): Promise<Response | null> {
+  const response = issueInvoice(data);
+  const payload = (await response.json()) as { success?: boolean };
+  if (payload.success) return null;
+  return jsonResponse(payload, response.status);
+}
+
 export async function handleMockSeed(request: Request): Promise<Response> {
   const json = await readJson(request);
   if (!json.ok) {
@@ -63,6 +86,13 @@ export async function handleMockSeed(request: Request): Promise<Response> {
     return jsonResponse({ success: false, error: parsed.error.message }, 400);
   }
   const body = parsed.data;
+  const snapshot = {
+    frozenNow: store.frozenNow,
+    invoices: store.invoices.slice(),
+    counters: store.organisations.map((org) =>
+      org.series.map((series) => series.nextCounter),
+    ),
+  };
   if (body.now) store.frozenNow = new Date(body.now);
   if (body.series) {
     for (const entry of body.series) {
@@ -76,14 +106,18 @@ export async function handleMockSeed(request: Request): Promise<Response> {
   }
   if (body.invoices) {
     for (const invoice of body.invoices) {
-      const response = issueInvoice(invoice);
-      const payload = (await response.json()) as { success: boolean };
-      if (!payload.success) return response;
+      const error = await issuedOrError(invoice);
+      if (error) {
+        restoreSeed(snapshot);
+        return error;
+      }
     }
   } else if (!body.series) {
-    const response = issueInvoice(SEED_INVOICE);
-    const payload = (await response.json()) as { success: boolean };
-    if (!payload.success) return response;
+    const error = await issuedOrError(SEED_INVOICE);
+    if (error) {
+      restoreSeed(snapshot);
+      return error;
+    }
   }
   return jsonResponse({ success: true, state: store.snapshot() });
 }
@@ -124,17 +158,38 @@ export function handleMockEvents(request: Request): Response {
   let unsubscribe: () => void = () => {};
   const stream = new ReadableStream({
     start(controller) {
-      const send = (event: unknown) => {
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
-        );
+      let closed = false;
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        unsubscribe();
+        unsubscribe = () => {};
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
       };
+      const send = (event: unknown) => {
+        if (closed || request.signal.aborted) {
+          close();
+          return;
+        }
+        try {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+          );
+        } catch {
+          close();
+        }
+      };
+      if (request.signal.aborted) {
+        close();
+        return;
+      }
       send({ type: 'hello' });
       unsubscribe = store.subscribe((event) => send(event));
-      request.signal.addEventListener('abort', () => {
-        unsubscribe();
-        controller.close();
-      });
+      request.signal.addEventListener('abort', close);
     },
     cancel() {
       unsubscribe();
