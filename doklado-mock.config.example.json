@@ -13,14 +13,14 @@
       },
       "series": [
         {
-          "name": "Vystavené faktúry",
+          "name": "Issued invoices",
           "mask": "#RRRRCCC",
           "exportAbbreviation": "FA",
           "counter": 1,
           "default": true
         },
         {
-          "name": "TESTOVACÍ RAD",
+          "name": "Test series",
           "mask": "#TEST-#RRRRCCC",
           "exportAbbreviation": "TESTRADEXPORT",
           "counter": 1,
