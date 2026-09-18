@@ -1,6 +1,7 @@
 {
   "name": "doklado-mock",
   "version": "0.0.0",
+  "description": "A local fake Doklado for issuing invoices and fetching their PDFs.",
   "private": true,
   "type": "module",
   "scripts": {

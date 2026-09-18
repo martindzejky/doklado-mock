@@ -391,6 +391,10 @@ makes the bug matter: the normal integration omits `number` precisely so invoice
 join the organisation's real sequence, and that is exactly the path you cannot
 rehearse safely.
 
+**Mock decision.** This mock issues from the series marked `default` in config. Faking
+the production bug would invent a rule we never isolated. That difference is
+recorded in `src/lib/server/doklado/deviations.ts`.
+
 **Observed, and the one merciful behaviour here.** Deleting an issued invoice in the
 web interface rolls the counter back. After deleting invoice `2026034` the series
 returned to next-value 34. Numbers are not burned permanently, which is what makes

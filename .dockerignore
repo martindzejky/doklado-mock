@@ -6,6 +6,5 @@ coverage
 tmp
 .env
 .env.*
-!.env.example
 *.md
 !README.md

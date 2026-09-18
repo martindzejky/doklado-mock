@@ -1,21 +1,30 @@
 # doklado-mock
 
-A fake [Doklado](https://doklado.com/sk) you can run on your laptop, so you can build
-an invoicing integration without touching real accounting data.
+A local fake [Doklado](https://doklado.com/sk). It fills the sandbox gap the way
+[maildev](https://github.com/maildev/maildev) does for email. Run it on your laptop,
+issue invoices against it, download their PDFs, and inspect what your code sent.
+State lives in memory and disappears on restart.
 
-Doklado ships no sandbox. There is only production, where every issued invoice is a
-real numbered document in someone's books. This fills that gap the way
-[maildev](https://github.com/maildev/maildev) does for email. Run it locally, point
-your application at it instead of the real service, and watch what your code sends in
-a small web interface. State lives in memory and disappears on restart.
+Doklado has no sandbox. Every invoice issued against production is a real numbered
+document in someone's books. Point your application at this mock instead.
 
-In production you change one environment variable back to the real Doklado gateway.
-Nothing else in your application changes.
+## What it covers
+
+Two Doklado endpoints:
+
+- `POST /v1/documents/invoice-issue`
+- `POST /v1/documents/get-invoice-pdf`
+
+Unknown `/v1` and `/v2` paths are logged and answered with Doklado's 403 shape,
+`{"error":"Unauthorized!"}`. Wrong methods on the two document routes do the same.
+
+An inspector UI at `/` shows the request log and issued invoices, including the PDF.
+`__mock` routes let tests reset, seed, inject faults, and read state without scraping
+HTML.
 
 ## Run it
 
-Node 24 and pnpm 11.7.0. Copy the example config if you want to edit organisations,
-series, or API keys:
+Node 24 and pnpm 11.7.0.
 
 ```sh
 cp doklado-mock.config.example.json doklado-mock.config.json
@@ -30,15 +39,9 @@ Or after a build:
 node bin/doklado-mock.js --port 3000 --config ./doklado-mock.config.json
 ```
 
-`npx doklado-mock --help` prints the same flags. Point your app at the mock with one
-env var:
-
-```sh
-DOKLADO_API_URL=http://127.0.0.1:3000
-```
-
-The accepted `api_key` header value is `test-api-key` unless you change the config.
-The example organisation IČO is `12345678`.
+`node bin/doklado-mock.js --help` prints the flags. `--host` defaults to
+`127.0.0.1`. `HOST`, `PORT`, and `DOKLADO_MOCK_CONFIG` work as environment
+variables as well.
 
 Docker:
 
@@ -47,21 +50,63 @@ docker compose up --build
 ```
 
 The inspector and `__mock` controls have no `api_key`. They are for local use.
-Docker still binds `0.0.0.0` inside the container; the bin defaults to `127.0.0.1`.
+Docker binds `0.0.0.0` inside the container.
 
-## What it covers
+Point your application at `http://127.0.0.1:3000` instead of the real Doklado
+gateway. The accepted `api_key` header value is `test-api-key` unless you change
+the config. The example organisation IČO is `12345678`.
 
-Two Doklado endpoints:
+## Config
 
-- `POST /v1/documents/invoice-issue`
-- `POST /v1/documents/get-invoice-pdf`
+JSON, validated on load. Organisations (IČO, name, country, home currency, bank,
+issuer email), numbering series (name, mask, export abbreviation, counter, default
+flag), accepted `api_key` values, and fixed exchange rates so foreign-currency
+tests stay deterministic.
 
-Plus a small inspector UI for the request log and issued invoices, and `__mock`
-controls so tests can reset, seed, and inject faults. Unknown `/v1` and `/v2` paths
-are logged and answered with Doklado's 403 shape.
+`doklado-mock.config.example.json` ships with one organisation so zero-config
+works. Mount a file into the container or pass `--config`.
 
-A fuller eight-endpoint mock was designed and then shelved. See
-[PLAN.full-mock.md](./PLAN.full-mock.md) if that comes back.
+## Try it
+
+```sh
+curl -s http://127.0.0.1:3000/v1/documents/invoice-issue \
+  -H 'content-type: application/json' \
+  -H 'api_key: test-api-key' \
+  -d '{
+    "data": {
+      "organizationId": "12345678",
+      "type": "issued_invoice",
+      "paid": true,
+      "paymentType": "card",
+      "items": [
+        {
+          "name": "Workshop",
+          "unitPriceWithoutVat": 100,
+          "vatRate": 23,
+          "quantity": 1
+        }
+      ],
+      "customer": {
+        "name": "Jane Doe",
+        "ico": "87654321",
+        "countryCode": "sk"
+      }
+    }
+  }'
+```
+
+The response is `{ "success": true, "data": { "documentId", "invoiceNumber" } }`.
+Create is not idempotent. Persist the id before fetching the PDF:
+
+```sh
+curl -s http://127.0.0.1:3000/v1/documents/get-invoice-pdf \
+  -H 'content-type: application/json' \
+  -H 'api_key: test-api-key' \
+  -d '{"data":{"organizationId":"12345678","documentId":"<id>"}}'
+```
+
+The PDF comes back base64-encoded inside JSON, with a capitalised `Content-Type`
+key. The same `documentId` always returns the same bytes.
 
 ## `__mock` controls
 
@@ -75,22 +120,17 @@ No `api_key`. JSON only.
 | `GET /__mock/state`  | Snapshot for tests                                                                                                    |
 | `GET /__mock/events` | SSE of store changes                                                                                                  |
 
-## Documentation
+## Behaviour
 
-- **[BEHAVIOUR.md](./BEHAVIOUR.md)** records how the real API behaves and where its
-  published specification is wrong. The mock is built against it.
-- **[PLAN.md](./PLAN.md)** is the active implementation plan.
+The mock is built against observed Doklado production behaviour, not against their
+published OpenAPI document. Where the two disagree, production wins.
+
+- **[BEHAVIOUR.md](./BEHAVIOUR.md)** records how the real API behaves, where the spec
+  is wrong, and the decisions encoded in this mock.
 - **[spec/swagger.json](./spec/swagger.json)** is a vendored snapshot of Doklado's
   OpenAPI document, checked for drift on a schedule.
-- **[PLAN.full-mock.md](./PLAN.full-mock.md)** is the archived ten-phase plan for a
-  fuller mock. Not the active scope.
 
-## Credentials
-
-The mock needs none. It is a fake Doklado and never talks to the real one.
-
-The keys in [.env.example](./.env.example) exist only for the scripts that record real
-API responses. Those hit production, so they are read-only by default.
+This mock never talks to real Doklado.
 
 ## Licence
 
