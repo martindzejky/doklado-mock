@@ -1,8 +1,9 @@
 # doklado-mock
 
-A local fake [Doklado](https://doklado.com/sk). Run it on your laptop, issue
-invoices against it, download their PDFs, and inspect what your code sent. State
-lives in memory and disappears on restart.
+A local fake [Doklado](https://doklado.com/sk). It fills the sandbox gap the way
+[maildev](https://github.com/maildev/maildev) does for email. Run it on your laptop,
+issue invoices against it, download their PDFs, and inspect what your code sent.
+State lives in memory and disappears on restart.
 
 Doklado has no sandbox. Every invoice issued against production is a real numbered
 document in someone's books. Point your application at this mock instead.

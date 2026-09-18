@@ -1,7 +1,7 @@
 # Doklado API behaviour
 
-What the real Doklado API does, as far as we know it. This is the specification
-doklado-mock is built against.
+What the real Doklado API does, as far as we know it. This is the specification the
+mock is built against.
 
 Doklado has no sandbox, so the only ways to learn its behaviour are their OpenAPI
 document and calls against production. Both were used. Their spec turned out to be
@@ -17,18 +17,24 @@ A snapshot of their document lives in `spec/swagger.json` (version `2025.2.18`,
 fetched 2026-08-05 from <https://api-doc.doklado.sk/swagger.json>). A scheduled job
 re-fetches it and fails when it changes, so drift becomes visible.
 
-This mock implements `POST /v1/documents/invoice-issue` and
-`POST /v1/documents/get-invoice-pdf`. Unknown `/v1` and `/v2` paths are logged and
-answered with Doklado's missing-key 403. The rest of Doklado's API is out of this
-mock; observations below are the ones that shape issuing, stored documents, and
-PDFs.
+## Scope
+
+Doklado is document-collection and pre-accounting software. A business feeds receipts
+and supplier invoices in, and the accountant's software pulls them out. Most of the
+API serves that flow, which is why it mentions Pohoda, export flags and accounting
+reference data.
+
+Invoice issuing is a separate, later addition aimed at applications that create
+invoices programmatically. That is the part this mock cares about. The
+document-listing endpoints are here mainly so tests can read issued invoices back
+through a real documented contract.
 
 ## Transport
 
 **Observed.** Every endpoint is `POST` with `application/json`, on both the request
 and the response. There are no `GET` routes, no path or query parameters, no
-`multipart/form-data` and no binary bodies anywhere in the API. Files only ever
-travel base64-encoded inside JSON, and only outward.
+`multipart/form-data` and no binary bodies anywhere in the API. Files only ever travel
+base64-encoded inside JSON, and only outward. Nothing can be uploaded.
 
 Every request body is wrapped in a single `data` key:
 
@@ -36,19 +42,16 @@ Every request body is wrapped in a single `data` key:
 { "data": { "organizationId": "12345678" } }
 ```
 
+The one exception is `/v2/documents/setExported`, which nests a `documents` array
+inside that wrapper.
+
 Express serves the API behind a Google API Gateway. Responses carry `x-powered-by:
 express`, `function-execution-id` and `server: Google Frontend`.
-
-The mock does not impersonate those gateway headers. It does reproduce POST-only
-JSON and the `data` wrapper. Non-POST on the two document routes is treated like
-an unknown path: logged, and answered with the missing-key 403 rather than a
-framework 405. Wrong-method responses were never observed; that 403 is the closest
-observed shape.
 
 ## Authentication
 
 **Observed.** A single `api_key` request header. The tenant is `organizationId`, the
-company's IČO, passed in the body rather than derived from the key.
+company's IČO, passed in the body of most endpoints rather than derived from the key.
 
 Authentication failures do **not** use the normal response envelope, and the two
 failure modes differ from each other:
@@ -62,17 +65,20 @@ The `APP_UNAUTHENTICATED` code that their spec lists never came back.
 
 ## Response envelope
 
-**Observed.** Successful calls return `success: true` alongside a `data` payload
-whose type depends on the endpoint. Issuing and PDF retrieval return an object.
+**Observed.** Successful calls return `success: true` alongside a `data` payload whose
+type depends on the endpoint. Document listings return an array; issuing and PDF
+retrieval return an object.
+
+`code` is not exclusively an error field. An empty `unprocessed-documents` listing
+returns `success: true` together with `code: "APP_NO_MORE_DATA"`.
 
 ## Errors
 
 **Observed.** Application-level failures return **HTTP 200** and come in **four
 different body shapes**. Worse, a single endpoint emits several of them depending on
-which validation layer rejected the request. `invoice-issue` produces all four.
+which validation layer rejected the request. `invoice-issue` alone produces all four.
 
-The bare form carries nothing but the code. Empty body and a missing `data` wrapper
-use it, as does an unknown organisation:
+The bare form carries nothing but the code. Document listing and export flags use it:
 
 ```json
 { "success": false, "code": "APP_INCORRECT_INPUT_DATA" }
@@ -135,13 +141,14 @@ with a `message`, and there is no field telling you which to expect. The mock
 reproduces the right shape per failure, because a client written against one of them
 will crash on the others.
 
-Observed codes and their triggers on the issuing path:
+Observed codes and their triggers:
 
 | Code                          | Trigger                                                                                                                      |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `APP_INCORRECT_INPUT_DATA`    | Missing `data` wrapper, empty body, wrong field type, invalid enum value, unknown numeric code, number not matching the mask |
 | `APP_ORGANIZATION_NOT_FOUND`  | `organizationId` that does not exist                                                                                         |
 | `APP_DOCUMENT_ALREADY_EXISTS` | Issuing with a `number` another document already has                                                                         |
+| `APP_NO_MORE_DATA`            | Empty result set, returned with `success: true`                                                                              |
 
 Note that the spec calls the second one `APP_ORGANIZATION_NOT_FOUND_CODE`. Production
 drops the suffix. It does not document the third at all.
@@ -149,6 +156,9 @@ drops the suffix. It does not document the third at all.
 Two cases escape the envelope entirely. Malformed JSON returns **HTTP 400** with an
 Express HTML error page rather than JSON. Authentication failures behave as described
 above.
+
+**Unknown.** Whether `APP_MAX_EXPORT_LIMIT_EXCEEDED`, `APP_READ_DATA_ERROR` or
+`SAVE_DATA_ERROR_CODE` are still emitted, and what triggers them.
 
 ## Unknown fields are ignored
 
@@ -167,28 +177,35 @@ being fatal.
 **Observed, and the easiest mistake to make.** In a _request_, `organizationId` is
 your own IČO and selects the tenant. In a returned document, `organizationId`,
 `organizationName`, `organizationTaxId`, `organizationVatId` and `address` all
-describe the **counterparty**, meaning the customer on an issued invoice. They are
-empty strings when the counterparty is a private individual.
+describe the **counterparty**, meaning the customer on an issued invoice and the
+supplier on a received one. They are empty strings when the counterparty is a private
+individual.
 
 The document's `email` field is a third thing again. It holds the issuer's contact
-address as printed on the PDF. Supplying `customer.contactEmail` when issuing does
-not populate it, and Doklado falls back to the account's own address.
+address as printed on the PDF. Supplying `customer.contactEmail` when issuing does not
+populate it, and Doklado falls back to the account's own address.
 
 ### Type and subtype
 
-**Observed.** On a stored issued invoice, `type` is `invoice`. `subType` is more
-granular:
+**Observed.** `type` is `invoice` or `receipt`. `subType` is more granular, and is a
+union of three enums that their spec models as only one:
 
-| Family | Values seen                           |
-| ------ | ------------------------------------- |
-| Issued | `domestic_exposed`, `foreign_exposed` |
+| Family          | Values seen                                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| Issued          | `domestic_exposed`, `foreign_exposed`                                                                 |
+| Received        | `domestic_received`, `foreign_received`, `domestic_credit`, `foreign_credit`, `tax_document_received` |
+| Manual receipts | `manual_domestic_received`, `manual_foreign_received`                                                 |
 
 "Exposed" means issued. It reads like a literal translation of the Slovak
 _vystavená_.
 
+The `resourceSubType` request filter does not take these values. It takes
+`issued_invoice` or `received_invoice` and selects the whole family. `resourceTypes`
+takes `invoice` or `receipt`, where receipts turn out to be the `manual_*` subtypes.
+
 **Observed.** The customer's country decides `domestic_exposed` against
-`foreign_exposed`, and currency has nothing to do with it. A Czech customer billed
-in EUR came back `foreign_exposed`. A Slovak customer billed in CZK came back
+`foreign_exposed`, and currency has nothing to do with it. A Czech customer billed in
+EUR came back `foreign_exposed`. A Slovak customer billed in CZK came back
 `domestic_exposed`.
 
 **Observed.** The `type` request field takes `issued_invoice`, `issued_credit`,
@@ -201,19 +218,23 @@ spec. It leaked out of a Zod error message.
 `accountingSettings`, `address` and `paymentInfo` follow the same rule.
 
 Which keys are present varies between documents. `internalNote` appeared on an
-API-issued invoice but not on older ones. Clients cannot assume a fixed key set.
+API-issued invoice but not on older ones, and
+`accountingSettings.classificationKVVat` did the reverse. Consumers cannot assume a
+fixed key set.
 
-Invoices created through `invoice-issue` have line items.
+Line items are usually absent. Across a sample of fifty documents, forty-five had an
+empty `items` array, because scanned and imported documents carry no parsed lines.
+Invoices created through `invoice-issue` do have them.
 
-The document number is `invoiceNumber`, and the request field that sets it is
-`number`. A second field `originalNumber` exists and was empty on every document we
-saw.
+The document number is `invoiceNumber`, even on receipts, and the request field that
+sets it is `number`. A second field `originalNumber` exists and was empty on every
+document we saw.
 
 ### Item `price` is a gross line total
 
 **Observed, and a genuine trap.** You send `unitPriceWithoutVat`, a net unit price.
-You get back `price`, the **gross line total**, quantity multiplied in and VAT
-added. Different concepts, similar names, no warning.
+You get back `price`, the **gross line total**, quantity multiplied in and VAT added.
+Different concepts, similar names, no warning.
 
 An earlier round of testing recorded this as a net line total, because the test used
 a 0% rate where net and gross are identical. Watch for that if you go checking.
@@ -230,8 +251,8 @@ The net line is 15.504, VAT on it is 3.566, and 19.074 rounds to 19.07.
 Rounding is half-up to two decimals, applied per item. `totalPrice` on the document
 is the sum of those already-rounded item grosses.
 
-`vatSummary` groups by rate, and computes from the **unrounded** net sums rather
-than from the rounded item figures. Two 23% lines of 15.504 and 0.015 produced
+`vatSummary` groups by rate, and computes from the **unrounded** net sums rather than
+from the rounded item figures. Two 23% lines of 15.504 and 0.015 produced
 `taxBase: 15.52`, where rounding each line first would have given 15.50. So the
 document's own numbers are internally inconsistent by a cent in the general case, and
 you cannot reconstruct `vatSummary` from the items you can see.
@@ -242,9 +263,9 @@ An entry exists for every rate present, including 0%, which comes back with
 ### Dates
 
 **Observed.** Dates come back as ISO 8601 with milliseconds in UTC. Date-only input
-such as `2026-08-05` returns as `2026-08-05T00:00:00.000Z`. Older documents from
-other ingestion paths sit at `T12:00:00.000Z` instead, so midday normalisation
-exists somewhere in their system but not on the issuing path.
+such as `2026-08-05` returns as `2026-08-05T00:00:00.000Z`. Older documents from other
+ingestion paths sit at `T12:00:00.000Z` instead, so midday normalisation exists
+somewhere in their system but not on the issuing path.
 
 `createdAt` is a true timestamp. Every date you omit gets filled with the moment of
 creation rather than with a normalised date, so an invoice issued without
@@ -257,16 +278,53 @@ The request field `issueDate` appears on the document as `issuedAt`. `dueDate` a
 
 ### Currency
 
-**Observed.** `currency` and `totalPrice` are the document's own. `otherCurrency`
-and `otherTotalPrice` are the same amount converted to the organisation's home
-currency, with `exchangeRate` alongside. For a EUR document in a EUR organisation
-the values match and the rate is `1`.
+**Observed.** `currency` and `totalPrice` are the document's own. `otherCurrency` and
+`otherTotalPrice` are the same amount converted to the organisation's home currency,
+with `exchangeRate` alongside. For a EUR document in a EUR organisation the values
+match and the rate is `1`.
 
 A 1 CZK invoice in a EUR organisation returned `exchangeRate: 24.2` and
 `otherTotalPrice: 0.04`, so the conversion divides by the rate and rounds to two
 decimals. Doklado picks the rate itself and there is no way to supply one.
 
-The mock uses fixed rates from config so foreign-currency tests stay deterministic.
+### Pagination
+
+**Observed.** Page size is fixed at 50 and there is no parameter to change it.
+
+`searchAfter` and the deprecated `continuationToken` sit at the **top level of the
+response**, as siblings of `data`, not inside it. `searchAfter` is a
+**single-element array holding the last document id**, not the `[timestamp, id]`
+pair their spec's example shows. Passing it back returns the next page.
+`continuationToken` appears to carry the same id as a bare string.
+
+**Observed.** Paging through 211 documents took six requests and terminates like
+this:
+
+| Request | `data`  | `code`             | `searchAfter`  |
+| ------- | ------- | ------------------ | -------------- |
+| 1 to 4  | 50 docs | absent             | present        |
+| 5       | 12 docs | absent             | present        |
+| 6       | `[]`    | `APP_NO_MORE_DATA` | **key absent** |
+
+Two traps here. A short page does **not** mean the end, so stopping when `data` has
+fewer than 50 entries silently drops the tail. And the terminating response drops
+the `searchAfter` and `continuationToken` keys rather than nulling them, so the
+right loop condition is the presence of the key, not its value. No document
+appeared twice across the six pages.
+
+### Filters
+
+**Observed.** Doklado accepts `resourceTypes`, `resourceSubType`, `orderBy`,
+`orderByDescending` and `isExported`, and rejects invalid enum values with
+`APP_INCORRECT_INPUT_DATA`.
+
+`orderBy` takes `delivery_date`, `issue_date` or `creation_date`. It does not take
+the field names that appear on documents, so the obvious guess `createdAt` fails.
+`unprocessed-documents` accepts the same parameter minus `issue_date`.
+
+**Unknown.** Whether `isExported` actually filters. Both `true` and `false` returned a
+full page of 50, and documents never carry an `isExported` field, so we could not
+confirm the effect. We did not test the date filters.
 
 ## Issuing an invoice
 
@@ -289,9 +347,8 @@ Firestore identifiers.
 
 **Observed.** Only four fields are required: `organizationId`, `type`, `items` and
 `customer`. `issueDate`, `dueDate`, `deliveryDate` and `currency` are all optional
-and default as described under Dates and Currency. Currency defaults to EUR in
-the organisation we probed, which is presumably the organisation's home currency
-rather than a constant. The mock uses the home currency from config.
+and default as described under Dates and Currency. Currency defaults to EUR, which
+is presumably the organisation's own rather than a constant.
 
 **Observed.** Doklado derives the variable symbol from the digits of the invoice
 number when `paymentInfo.variableSymbol` is omitted. `TEST-0001` produced
@@ -329,15 +386,19 @@ one with prior invoices are both plausible, and we have no way to distinguish th
 from outside.
 
 **Consequence.** You cannot test auto-numbering against a throwaway series. Doklado
-ignores the flag and takes a number from your live sequence instead.
+ignores the flag and takes a number from your live sequence instead. That is what
+makes the bug matter: the normal integration omits `number` precisely so invoices
+join the organisation's real sequence, and that is exactly the path you cannot
+rehearse safely.
 
-**Mock decision.** The mock issues from the series marked `default` in config. Faking
+**Mock decision.** This mock issues from the series marked `default` in config. Faking
 the production bug would invent a rule we never isolated. That difference is
 recorded in `src/lib/server/doklado/deviations.ts`.
 
 **Observed, and the one merciful behaviour here.** Deleting an issued invoice in the
 web interface rolls the counter back. After deleting invoice `2026034` the series
-returned to next-value 34. Numbers are not burned permanently.
+returned to next-value 34. Numbers are not burned permanently, which is what makes
+probing production survivable at all.
 
 ### Targeting a series with `numericCodeId`
 
@@ -350,15 +411,18 @@ Doklado's own internal ids do not work here. We tried the real id of the series
 Doklado was actively issuing from and got `"Incorrect numeric code"`, the same
 response as for a string of nonsense. The abbreviation is blank by default, so on a
 fresh organisation there is no working value at all until somebody types one in.
+That fits the feature's origin: numeric codes were built for accounting software
+pushing its own identifiers in through `accounting-settings/import`, and the
+abbreviation is the pairing key.
 
 Setting the abbreviation to `TESTRADEXPORT` and sending
 `accountingSettings: { "numericCodeId": "TESTRADEXPORT" }` issued `TEST-2026001`
 from the intended series.
 
-An application that wants its invoices in the organisation's normal sequence should
-omit both `number` and `numericCodeId` and accept the default. Use `numericCodeId`
-to point probes at a scratch series. The mock's example config includes both a
-default series (`FA`) and a test series (`TESTRADEXPORT`).
+**This is a testing tool, not an integration one.** An application that wants its
+invoices in the organisation's normal sequence should omit both `number` and
+`numericCodeId` and accept the default, bug and all. Use `numericCodeId` to point
+probes at a scratch series.
 
 ### Explicit numbers move the counter
 
@@ -383,10 +447,10 @@ format mask, or you get
 `{"message": "Invoice number doesnt match numeric code format"}`. `TEST-8001` failed
 against the mask `#TEST-#RRRRCCC`.
 
-When you do not send `numericCodeId`, no such check happens. `TEST-0001` was
-accepted against an organisation whose only series used the mask `RRRRCCC`, which it
-plainly does not match. Whether your invoice number is validated depends on whether
-you mentioned an unrelated field.
+When you do not send `numericCodeId`, no such check happens. `TEST-0001` was accepted
+against an organisation whose only series used the mask `RRRRCCC`, which it plainly
+does not match. Whether your invoice number is validated depends on whether you
+mentioned an unrelated field.
 
 ### Duplicate numbers
 
@@ -395,6 +459,24 @@ you mentioned an unrelated field.
 See the conflict form under Errors. Numbers are unique across the organisation, not
 per series.
 
+### On the quality of all this
+
+Worth saying plainly, because it shapes how much the mock should trust the spec.
+This API is bad, and not in small ways. The default-series flag does not work.
+Errors arrive in four incompatible shapes from the same endpoint. `organizationId`
+means your company in a request and the counterparty in a response. Item `price` is
+a net unit price going in and a gross line total coming out. A field named
+`numericCodeId` takes an abbreviation rather than an id, and rejects the actual id.
+Whether your invoice number gets validated depends on whether you sent an unrelated
+field. `data` changes between array and object depending on how many results there
+are. Omitted dates default to the current millisecond. An issued invoice's id is
+called `expenseId` in one response. Half the documented response schemas do not
+match production, and the spec was clearly written once and left behind.
+
+None of that is fixable from here, so the mock encodes the real behaviour, including
+the bugs. A mock that behaves better than production would hide exactly the problems
+it exists to surface.
+
 ### Payment status
 
 **Observed, and unintuitive.** `paid: true` records a payment for the total _as it
@@ -402,8 +484,16 @@ stands at issue time_. It does not track later changes. After an update took an
 invoice from a total of 1 to a total of 6, `paymentStatus` changed from `paid` to
 `partially_paid` on its own. The recorded payment no longer covered the new total.
 
-The mock has no update route, so `paymentStatus` stays `paid` or `not_paid` as set
-at issue. Unpaid uses the swagger enum value `not_paid`, not an invented `unpaid`.
+## Updating an issued invoice
+
+`POST /v1/documents/issued-invoice-update`
+
+**Observed.** Takes the same field set as issuing, with everything optional, addressed
+by `documentId`. Returns `{ "success": true, "data": { "documentId": "<id>" } }`.
+Unlike issuing, there is no `invoiceNumber`.
+
+Supplying `items` replaces the array wholesale, and Doklado recomputes totals and
+`vatSummary`.
 
 ## Invoice PDF
 
@@ -428,26 +518,137 @@ to 80 kB, with subsetted embedded fonts.
 
 **Inferred.** `language` on the invoice controls the PDF language, Slovak by default.
 
-The mock renders a one-page PDF with Slovak diacritics via `pdf-lib`, `fontkit`, and
-Noto Sans. Fonts are embedded without subsetting, because the fontkit version in use
-does not expose the stream encoder `pdf-lib` 1.17 uses for subsets. Same
-`documentId` returns byte-identical output: clock and randomness come from the store,
-not from each call.
+## Sending by email
 
-## On the quality of all this
+`POST /v1/documents/send-invoice-by-email`
 
-Worth saying plainly, because it shapes how much the mock should trust the spec.
-This API is bad, and not in small ways. The default-series flag does not work.
-Errors arrive in four incompatible shapes from the same endpoint. `organizationId`
-means your company in a request and the counterparty in a response. Item `price` is
-a net unit price going in and a gross line total coming out. A field named
-`numericCodeId` takes an abbreviation rather than an id, and rejects the actual id.
-Whether your invoice number gets validated depends on whether you sent an unrelated
-field. Omitted dates default to the current millisecond. An issued invoice's id is
-called `expenseId` in one response. Half the documented response schemas do not
-match production, and the spec was clearly written once and left behind.
+**Inferred.** Generates the PDF and sends it through Brevo to `recipients`, with
+optional `subject`, `message`, `template`, `cc` and `bcc`. Returns the bare envelope
+with no data.
 
-None of that is fixable from here, so the mock encodes the real behaviour, including
-the bugs. A mock that behaves better than production would hide exactly the problems
-it exists to surface. The one intentional difference is the default numbering
-series, recorded in `src/lib/server/doklado/deviations.ts`.
+We deliberately did not test this. It sends real mail to real people, a side effect
+outside the Doklado account. The mock records these calls and never sends anything.
+
+## Export flags
+
+`POST /v2/documents/setExported`
+
+**Observed.** `status` must come from a narrow enum of `not_exported`,
+`sync_with_acc_soft`, `sync_with_acc_soft_failed`,
+`sync_with_acc_soft_without_attachment` and
+`sync_with_acc_soft_ok_attachment_failed`. Doklado rejects plausible-looking values
+such as `success`.
+
+Returns a per-document result array:
+
+```json
+{
+  "success": true,
+  "data": { "results": [{ "documentId": "<id>", "success": true }] }
+}
+```
+
+Their spec does not describe this `results` wrapper.
+
+## Attachments
+
+`POST /v2/documents/attachments/get`
+
+**Observed.** `documentType` accepts only `expense` or `unprocessed_document`.
+Passing `invoice` fails with `APP_INCORRECT_INPUT_DATA`.
+
+The request takes a `requestDocumentsAttachments` array of `documentId` and
+`documentType` pairs. `data` comes back as a flat array with one entry per
+attachment, not grouped by document and not wrapped in a `results` object the way
+`setExported` does:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "documentId": "<id>",
+      "downloadUrl": "<long signed url>",
+      "fileName": "supplier_invoice_5119121",
+      "fileType": "primary"
+    }
+  ]
+}
+```
+
+`fileType` is `primary` or `secondary`. `fileName` carries no extension, so the
+format has to come from the URL or the download itself. Download URLs are long
+signed links, presumably short-lived.
+
+Nothing in the API can create an attachment, so issued invoices never have any.
+
+## Unprocessed documents
+
+`POST /v1/unprocessed-documents`
+
+**Observed, and genuinely awful.** `data` changes type depending on how many results
+there are. Empty queue gives `success: true`, `code: "APP_NO_MORE_DATA"` and an empty
+**array**. Non-empty gives the **object** their spec describes, with no `code`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "documents": [
+      {
+        "documentId": "<id>",
+        "createdAt": "2026-08-05T05:42:41.121Z",
+        "deliveryDate": "2026-07-03T00:00:00.000Z",
+        "organizationName": "<supplier>",
+        "totalPrice": 14.99,
+        "currency": "USD",
+        "createdBy": "<uploader email>"
+      }
+    ],
+    "totalDocuments": 1,
+    "notApprovedDocuments": 0
+  },
+  "searchAfter": ["<id>"]
+}
+```
+
+A statically typed client cannot model that as one type. Anything consuming this has
+to branch on the runtime type of `data` before touching it.
+
+Paging works the same way as `/v2/documents`. Passing `searchAfter` back after the
+last entry returns `success: true`, `code: "APP_NO_MORE_DATA"` and `data: []`, with
+no `searchAfter` key. So the array form is really the terminal form, and the object
+form appears whenever there are results.
+
+Queue entries are far thinner than a `DocumentV2`, seven fields against thirty, and
+`createdBy` exposes the email of whoever uploaded the file. Note `searchAfter` at the
+top level again, same as `/v2/documents`.
+
+Documents can only enter this queue through Doklado's own upload, email forwarding or
+mobile app. There is no API route in.
+
+## Endpoints not implemented
+
+`/v1/documents`, `/v1/documents/setExported` and `/v1/documents/getAttachments` are
+superseded by `/v2` equivalents.
+
+Both versions of `/organization/accounting-settings/import` exist so accounting
+software can push its own reference data into Doklado, things like numbering series,
+cost centres and VAT classifications. No application issuing invoices needs it. You
+configure numbering series in the Doklado web interface instead, and the mock
+represents that configuration in its own config file.
+
+## Open questions
+
+Worth resolving next time there is a reason to touch production:
+
+- What Doklado actually uses to pick the default series, since it is not the default
+  flag. Creation order and "the series with prior invoices" are both plausible.
+- What happens to numbering under concurrent issuing. Everything here was sequential.
+- Whether `isExported` filters, and why documents never expose the flag they are
+  filtered by.
+- Whether date filters behave as documented.
+- Which shape each remaining endpoint uses for errors. Issuing produces all four,
+  document listing only the bare one, and the rest are untested.
+- What the other four `type` values do, and whether credit notes carry a reference
+  to the invoice they correct.
