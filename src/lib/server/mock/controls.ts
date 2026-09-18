@@ -65,6 +65,7 @@ function restoreSeed(snapshot: {
       series.nextCounter = snapshot.counters[orgIndex][seriesIndex];
     });
   });
+  store.emit('seed');
 }
 
 async function issuedOrError(

@@ -84,6 +84,8 @@ describe('__mock/seed', () => {
   });
 
   test('failed invoice seed returns the error body and rolls back', async () => {
+    const reasons: string[] = [];
+    const unsubscribe = store.subscribe((event) => reasons.push(event.reason));
     const response = await handleMockSeed(
       new Request('http://localhost/__mock/seed', {
         method: 'POST',
@@ -93,6 +95,7 @@ describe('__mock/seed', () => {
         }),
       }),
     );
+    unsubscribe();
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       success: false,
@@ -100,6 +103,7 @@ describe('__mock/seed', () => {
     });
     expect(store.invoices).toHaveLength(0);
     expect(store.organisations[0].series[0].nextCounter).toBe(1);
+    expect(reasons.at(-1)).toBe('seed');
   });
 
   test('invalid now is 400 and leaves the clock alone', async () => {
