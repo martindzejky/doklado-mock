@@ -25,7 +25,45 @@ HTML.
 
 ## Run it
 
-Node 24 and pnpm 11.7.0.
+Node 24+. `--host` defaults to `127.0.0.1`. `HOST`, `PORT`, and
+`DOKLADO_MOCK_CONFIG` work as environment variables. Paths in `--config` are
+resolved from the directory you run the command in.
+
+```sh
+npx @martindzejky/doklado-mock --help
+npx @martindzejky/doklado-mock
+npx @martindzejky/doklado-mock --port 4010 --config ./doklado-mock.config.json
+```
+
+Or install it and call `doklado-mock` from your project.
+
+Docker from GHCR:
+
+```sh
+docker run --rm -p 3000:3000 ghcr.io/martindzejky/doklado-mock:1.0.0
+```
+
+The image listens on `0.0.0.0:3000` inside the container. Publish that port to
+open the inspector on your machine. Other Compose services should call the API
+at `http://doklado-mock:3000`. Mount a config over the packaged default:
+
+```sh
+docker run --rm -p 3000:3000 \
+  -v "$PWD/doklado-mock.config.json:/app/doklado-mock.config.json:ro" \
+  ghcr.io/martindzejky/doklado-mock:1.0.0
+```
+
+```yaml
+services:
+  doklado-mock:
+    image: ghcr.io/martindzejky/doklado-mock:1.0.0
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./doklado-mock.config.json:/app/doklado-mock.config.json:ro
+```
+
+From this repository, Node 24 and pnpm 11.7.0:
 
 ```sh
 cp doklado-mock.config.example.json doklado-mock.config.json
@@ -40,21 +78,15 @@ Or after a build:
 node bin/doklado-mock.js --port 3000 --config ./doklado-mock.config.json
 ```
 
-`node bin/doklado-mock.js --help` prints the flags. `--host` defaults to
-`127.0.0.1`. `HOST`, `PORT`, and `DOKLADO_MOCK_CONFIG` work as environment
-variables as well.
-
-Docker:
-
 ```sh
 docker compose up --build
 ```
 
-`./scripts/docker-smoke.sh` builds that image, waits until it answers, then issues an
-invoice and fetches its PDF.
+`./scripts/docker-smoke.sh` builds that image, waits until it answers, then issues
+an invoice and fetches its PDF. `./scripts/pack-smoke.sh` packs the npm package,
+installs it in a temporary project, and does the same through the published CLI.
 
 The inspector and `__mock` controls have no `api_key`. They are for local use.
-Docker binds `0.0.0.0` inside the container.
 
 Point your application at `http://127.0.0.1:3000` instead of the real Doklado
 gateway. The accepted `api_key` header value is `test-api-key` unless you change
@@ -228,6 +260,72 @@ published OpenAPI document. Where the two disagree, production wins.
   OpenAPI document, checked for drift on a schedule.
 
 This mock never talks to real Doklado.
+
+## Releases
+
+GitHub Actions publishes npm and GHCR from `v*.*.*` tags. Do not publish from
+your machine. Do not push a tag until the one-time registry setup below is done.
+
+A stable tag such as `v1.0.0` publishes npm `1.0.0` on `latest` and images
+`ghcr.io/martindzejky/doklado-mock:1.0.0` and `:latest`. A prerelease tag such as
+`v1.1.0-rc.1` publishes npm on the `next` dist-tag and image `1.1.0-rc.1` only.
+
+The tag must match `package.json` (`v` plus the version).
+
+### One-time registry setup
+
+**npm.** Trusted publishing cannot attach to a name that does not exist yet.
+
+1. `npm login` with 2FA.
+2. From an empty temp directory, publish a public stub so the scoped name exists:
+
+   ```sh
+   npm publish --access public --tag bootstrap
+   ```
+
+   Use `"name": "@martindzejky/doklado-mock"` and `"version": "0.0.0"`. The first
+   publish also sets `latest` to `0.0.0`. The `v1.0.0` workflow moves `latest`.
+
+3. On npmjs.com, open `@martindzejky/doklado-mock` → Package Settings → Trusted
+   Publisher → GitHub Actions:
+
+   - Organization or user: `martindzejky`
+   - Repository: `doklado-mock`
+   - Workflow filename: `publish.yml` (filename only, including `.yml`)
+   - Environment: leave empty
+   - Allowed actions: `npm publish`
+
+4. Do not store an npm token in GitHub. The workflow uses OIDC. Do not add
+   `registry-url` to `actions/setup-node`; that writes an empty `_authToken` and
+   skips the OIDC exchange.
+5. After the first CI publish succeeds, you can set Publishing access to require
+   2FA and disallow tokens. Trusted publishing keeps working.
+
+**GHCR.** No personal access token. The workflow uses `GITHUB_TOKEN` with
+`packages: write`. The first image push creates
+`ghcr.io/martindzejky/doklado-mock` as a private package. Then Package settings →
+Change visibility → Public:
+https://github.com/users/martindzejky/packages/container/doklado-mock
+
+### Publish v1.0.0
+
+After this PR is on `master` and the npm trusted publisher is saved:
+
+```sh
+git checkout master
+git pull
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+That runs `.github/workflows/publish.yml`. Then make the GHCR package public if
+the first image is still private. Do not create a GitHub Release by hand unless
+you want one; the workflow only publishes npm and the image.
+
+### Later versions
+
+Bump `version` in `package.json` on `master`, merge, tag `vX.Y.Z`, and push the
+tag. Both artifacts publish from that tag.
 
 ## Licence
 
