@@ -8,3 +8,15 @@ services:
       PORT: '3000'
     volumes:
       - ./doklado-mock.config.example.json:/app/doklado-mock.config.json:ro
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 5s

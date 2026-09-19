@@ -93,3 +93,13 @@ jobs:
           echo "App did not respond in time"
           kill "$SERVER_PID"
           exit 1
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Smoke test Docker Compose
+        run: ./scripts/docker-smoke.sh

@@ -50,6 +50,9 @@ Docker:
 docker compose up --build
 ```
 
+`./scripts/docker-smoke.sh` builds that image, waits until it answers, then issues an
+invoice and fetches its PDF.
+
 The inspector and `__mock` controls have no `api_key`. They are for local use.
 Docker binds `0.0.0.0` inside the container.
 
