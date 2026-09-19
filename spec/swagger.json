@@ -116,6 +116,123 @@
         }
       }
     },
+    "/v2/documents/get": {
+      "post": {
+        "summary": "Get specific document",
+        "description": "Returns a single document (receipt or invoice) by its document id.",
+        "tags": [
+          "Documents"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for getting a single document",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataGetDocument"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponseSimple"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/DocumentV2"
+                            },
+                            {
+                              "$ref": "#/components/schemas/InvoiceV2"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/v2/documents/changes": {
+      "post": {
+        "summary": "Get document changes",
+        "description": "Returns history of changes for the given documents.",
+        "tags": [
+          "Documents"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for getting document changes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataGetDocumentChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDocumentsChangeResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
     "/v1/documents/setExported": {
       "post": {
         "summary": "Set exported flag for documents",
@@ -291,6 +408,369 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/InputDataAccountingSoftwareImportV2"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSimple"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/v1/organization/bank-transactions": {
+      "post": {
+        "summary": "Returns bank transactions for the organization assigned to the API key",
+        "description": "Accepts only an API key that is bound to a specific organization (organization API key). The organization is derived from the API key, not from the request body.",
+        "tags": [
+          "Organization"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for export",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataGetBankTransactions"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponseSimple"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/GetBankTransactionsSuccefulresponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {}
+          },
+          "403": {
+            "description": "API key is not bound to an organization",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/v3/organization/manage/list": {
+      "post": {
+        "summary": "List organizations",
+        "tags": [
+          "Organization"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for listing organizations",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataOrganizationManageList"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponseSimple"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "documents": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/PublicOrganization"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/v3/organization/manage/create": {
+      "post": {
+        "summary": "create organization",
+        "tags": [
+          "Organization"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for creating organization",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataOrganizationManageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponseSimple"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "organizationId": {
+                              "type": "string",
+                              "description": "ID of created organization (IČO)"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/v3/organization/manage/update": {
+      "post": {
+        "summary": "update organization",
+        "tags": [
+          "Organization"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for updating organization",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataOrganizationManageUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSimple"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/v3/organization/manage/assign-member": {
+      "post": {
+        "summary": "assign organization member",
+        "tags": [
+          "Organization"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for assigning users to organization",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataOrganizationManageAssignMember"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponseSimple"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "usersResponse": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/PublicUserInviteResponse"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/v3/organization/manage/accounting-settings/sync": {
+      "post": {
+        "summary": "accounting settings sync",
+        "tags": [
+          "Organization"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for syncing accounting settings",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataOrganizationManageAccountingSettingsSync"
               }
             }
           },
@@ -811,8 +1291,16 @@
             "nullable": true,
             "enum": [
               "create",
-              "issue"
+              "delivery"
             ]
+          },
+          "approvalStatus": {
+            "type": "array",
+            "example": [],
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/ApprovalStatus"
+            }
           }
         }
       },
@@ -1175,6 +1663,250 @@
                 }
               }
             }
+          }
+        }
+      },
+      "InputDataOrganizationManageList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "identificationNumber": {
+                "type": "string",
+                "description": "Company identification number (IČO)"
+              },
+              "taxIdentificationNumber": {
+                "type": "string",
+                "description": "Tax identification number (DIČ)"
+              }
+            }
+          }
+        }
+      },
+      "InputDataOrganizationManageCreate": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "identificationNumber": {
+                "type": "string",
+                "description": "Company identification number (IČO)"
+              },
+              "accountingSoftware": {
+                "type": "string",
+                "enum": [
+                  "omega",
+                  "pohoda",
+                  "helios",
+                  "moneys3",
+                  "garis",
+                  "mrp",
+                  "mrpks",
+                  "abra",
+                  "schmidhuber",
+                  "undefined",
+                  "mksoft",
+                  "tangram",
+                  "vema",
+                  "karat",
+                  "metrostav",
+                  "business_central",
+                  "ht_eso"
+                ]
+              },
+              "countryCode": {
+                "type": "string",
+                "enum": [
+                  "sk",
+                  "cz"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "identificationNumber",
+          "accountingSoftware",
+          "countryCode"
+        ]
+      },
+      "InputDataOrganizationManageUpdate": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "organizationId": {
+                "type": "string",
+                "description": "Organization ID (IČO)"
+              },
+              "accountingSoftwareCredentials": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "hostUrl": {
+                    "type": "string"
+                  },
+                  "organization": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "organizationId"
+        ]
+      },
+      "InputDataOrganizationManageAssignMember": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "organizationId": {
+                "type": "string",
+                "description": "Organization ID (IČO)"
+              },
+              "users": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "organizationRole": {
+                      "type": "string",
+                      "enum": [
+                        "accountant",
+                        "owner",
+                        "employee"
+                      ]
+                    },
+                    "userEmail": {
+                      "type": "string",
+                      "format": "email",
+                      "description": "Email address of the user to assign"
+                    },
+                    "telephoneNumber": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "surname": {
+                      "type": "string"
+                    },
+                    "employeeNumber": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "organizationRole",
+                    "userEmail",
+                    "name",
+                    "surname"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "organizationId",
+          "users"
+        ]
+      },
+      "InputDataOrganizationManageAccountingSettingsSync": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "organizationId": {
+                "type": "string",
+                "description": "Organization ID (IČO)"
+              },
+              "accountingSettingType": {
+                "type": "string",
+                "enum": [
+                  "accounting_items",
+                  "expenditure_center",
+                  "cash_registers",
+                  "activities",
+                  "bank_accounts",
+                  "orders",
+                  "accounting_account",
+                  "classification_vat",
+                  "classification_kv_dph",
+                  "organization_codes",
+                  "all_accounting_settings",
+                  "automatic_accountings",
+                  "partners",
+                  "dimension_zero",
+                  "dimension_one",
+                  "dimension_two"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "organizationId",
+          "accountingSettingType"
+        ]
+      },
+      "PublicOrganization": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "description": "Organization ID (IČO)"
+          },
+          "name": {
+            "type": "string"
+          },
+          "taxIdentificationNumber": {
+            "type": "string",
+            "description": "Tax identification number (DIČ)"
+          },
+          "identificationNumber": {
+            "type": "string",
+            "description": "Company identification number (IČO)"
+          },
+          "countryCode": {
+            "type": "string"
+          }
+        }
+      },
+      "PublicUserInviteResponse": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "invited",
+              "assigned",
+              "exists"
+            ]
+          },
+          "success": {
+            "type": "boolean"
           }
         }
       },
@@ -1924,6 +2656,14 @@
             "deprecated": true,
             "nullable": true,
             "description": "Token used for pagginationt"
+          },
+          "approvalStatus": {
+            "type": "array",
+            "example": [],
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/ApprovalStatus"
+            }
           }
         }
       },
@@ -1956,6 +2696,53 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/InputParametersGetAttachments"
+          }
+        }
+      },
+      "InputDataGetDocument": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InputParametersGetDocument"
+          }
+        }
+      },
+      "InputParametersGetDocument": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "example": "tAMAUmjewZ7SHXoDi8ax",
+            "description": "ID of document to get."
+          }
+        }
+      },
+      "InputDataGetDocumentChanges": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InputParametersGetDocumentChanges"
+          }
+        }
+      },
+      "InputParametersGetDocumentChanges": {
+        "type": "object",
+        "properties": {
+          "documents": {
+            "type": "array",
+            "description": "Array of documents to get changes for",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "properties": {
+                "documentId": {
+                  "type": "string",
+                  "example": "tAMAUmjewZ7SHXoDi8ax",
+                  "description": "ID of document to get changes for."
+                }
+              }
+            }
           }
         }
       },
@@ -4044,6 +4831,243 @@
           }
         }
       },
+      "InputDataGetBankTransactions": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InputParametersBankTransactions"
+          }
+        }
+      },
+      "InputParametersBankTransactions": {
+        "type": "object",
+        "properties": {
+          "dateFrom": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Export bank transactions from this date.",
+            "nullable": true
+          },
+          "dateTo": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Export bank transactions until this date.",
+            "nullable": true
+          },
+          "dateType": {
+            "type": "string",
+            "description": "Date field used for the date range filter. Required when dateFrom or dateTo is provided.",
+            "nullable": true,
+            "enum": [
+              "booking_date",
+              "creation_date"
+            ]
+          },
+          "accountIdentification": {
+            "type": "string",
+            "minLength": 1,
+            "nullable": true,
+            "description": "Bank account identification (IBAN) to filter the bank transactions by.",
+            "example": "SK6811000000002922888888"
+          },
+          "pairingStatus": {
+            "type": "string",
+            "nullable": true,
+            "description": "Pairing status of the bank transaction to filter by.",
+            "enum": [
+              "paired",
+              "not_paired",
+              "paired_manually",
+              "paired_without_document_manually",
+              "paired_without_document"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "nullable": true,
+            "description": "Payment status of the bank transaction to filter by.",
+            "enum": [
+              "paid",
+              "not_paid",
+              "partially_paid",
+              "in_progress"
+            ]
+          },
+          "orderBy": {
+            "type": "string",
+            "description": "Field to sort the bank transactions by.",
+            "nullable": true,
+            "enum": [
+              "booking_date",
+              "creation_date"
+            ]
+          },
+          "orderByDescending": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Sort in descending order. Defaults to ascending.",
+            "example": false
+          },
+          "searchAfter": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "description": "Tokens for pagination taken from the last hit of the previous page."
+          }
+        }
+      },
+      "GetBankTransactionsSuccefulresponse": {
+        "type": "object",
+        "properties": {
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicApiOrganizationBankTransaction"
+            }
+          },
+          "balances": {
+            "type": "array",
+            "description": "Current available balance per bank account of the organization.",
+            "items": {
+              "$ref": "#/components/schemas/PublicApiOrganizationBankBalance"
+            }
+          }
+        }
+      },
+      "PublicApiOrganizationBankBalance": {
+        "type": "object",
+        "required": [
+          "iban",
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "Bank account identification (IBAN) of the account",
+            "example": "SK6511000000002942081405"
+          },
+          "amount": {
+            "type": "number",
+            "format": "double",
+            "description": "Current available balance of the account (availableLedger for TB internal accounts, interimAvailable otherwise)",
+            "example": 1250.75
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency of the balance",
+            "example": "EUR"
+          }
+        }
+      },
+      "PublicApiOrganizationBankTransaction": {
+        "type": "object",
+        "required": [
+          "totalAmount",
+          "currency"
+        ],
+        "properties": {
+          "accountIdentification": {
+            "type": "string",
+            "nullable": true,
+            "description": "Bank account identification (IBAN) of the bank transaction",
+            "example": "SK6811000000002922888888"
+          },
+          "variableSymbol": {
+            "type": "string",
+            "nullable": true,
+            "description": "Variable symbol (variabilný symbol) of the bank transaction",
+            "example": "2025001"
+          },
+          "constantSymbol": {
+            "type": "string",
+            "nullable": true,
+            "description": "Constant symbol (konštantný symbol) of the bank transaction",
+            "example": "0308"
+          },
+          "totalAmount": {
+            "type": "number",
+            "format": "double",
+            "description": "Total amount of the bank transaction",
+            "example": 199.99
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency of the bank transaction",
+            "example": "EUR"
+          },
+          "remittanceInformationUnstructured": {
+            "type": "string",
+            "nullable": true,
+            "description": "Remittance information unstructured of the bank transaction",
+            "example": "Doklad č. 2025/001"
+          },
+          "additionalInfo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Additional information of the bank transaction",
+            "example": "Platba za tovar"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true,
+            "description": "Note of the bank transaction",
+            "example": "Doklad spárovaný s faktúrou"
+          },
+          "transactionPartyName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Name of the transaction counterparty",
+            "example": "Acme Corp"
+          },
+          "transactionPartyIBAN": {
+            "type": "string",
+            "nullable": true,
+            "description": "IBAN of the transaction counterparty",
+            "example": "DE89370400440532013000"
+          },
+          "pairingStatus": {
+            "type": "string",
+            "nullable": true,
+            "description": "Pairing status of the bank transaction",
+            "enum": [
+              "paired",
+              "not_paired",
+              "paired_manually",
+              "paired_without_document",
+              "paired_without_document_manually",
+              "undefined"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "nullable": true,
+            "description": "Payment status of the bank transaction",
+            "enum": [
+              "paid",
+              "not_paid",
+              "partially_paid",
+              "in_progress"
+            ]
+          },
+          "bookingDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Booking date of the bank transaction",
+            "example": "2025-01-20T10:30:00Z"
+          }
+        }
+      },
       "SetExportedV2SuccesfullResponse": {
         "type": "object",
         "properties": {
@@ -4069,6 +5093,92 @@
                 }
               }
             }
+          }
+        }
+      },
+      "GetDocumentsChangeResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Was operation successful"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true,
+            "example": "APP_INCORRECT_INPUT_DATA",
+            "enum": [
+              "APP_UNAUTHENTICATED",
+              "APP_INCORRECT_INPUT_DATA",
+              "APP_INSUFFICIENT_PERMISSIONS",
+              "APP_READ_DATA_ERROR"
+            ],
+            "description": "* `APP_INCORRECT_INPUT_DATA` - The provided documents list is invalid (empty, more than 10 documents or a document does not belong to the organization).\n* `APP_INSUFFICIENT_PERMISSIONS` - The API key or user does not have permission to read document changes for the organization.\n* `APP_READ_DATA_ERROR` - Status indicates an undefined error occurred while attempting to read data from the application.\n"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentChangeHistory"
+            }
+          }
+        }
+      },
+      "DocumentChangeHistory": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "description": "ID of the document the changes belong to."
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentChange"
+            }
+          }
+        }
+      },
+      "DocumentChange": {
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date and time when the change was created."
+          },
+          "createdBy": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "email": {
+                "nullable": true,
+                "type": "string",
+                "description": "Email of the user that made the change."
+              }
+            }
+          },
+          "changedFields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentChangedField"
+            }
+          }
+        }
+      },
+      "DocumentChangedField": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Name of the changed document field."
+          },
+          "before": {
+            "type": "string",
+            "description": "Value of the field before the change."
+          },
+          "after": {
+            "type": "string",
+            "description": "Value of the field after the change."
           }
         }
       },

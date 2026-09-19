@@ -1,4 +1,4 @@
-const ISSUE_KNOWN_KEYS = {
+export const ISSUE_KNOWN_KEYS = {
   root: [
     'organizationId',
     'type',
@@ -123,6 +123,8 @@ export function unknownIssueFields(data: unknown): string[] {
   return extras;
 }
 
+export const PDF_KNOWN_KEYS = ['organizationId', 'documentId'] as const;
+
 export function unknownPdfFields(data: unknown): string[] {
-  return extraKeys(data, ['organizationId', 'documentId'], '');
+  return extraKeys(data, PDF_KNOWN_KEYS, '');
 }
