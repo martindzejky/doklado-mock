@@ -16,7 +16,8 @@ Two Doklado endpoints:
 - `POST /v1/documents/get-invoice-pdf`
 
 Unknown `/v1` and `/v2` paths are logged and answered with Doklado's 403 shape,
-`{"error":"Unauthorized!"}`. Wrong methods on the two document routes do the same.
+`{"error":"Unauthorized!"}`. Wrong methods on the two document routes, including
+OPTIONS, do the same.
 
 An inspector UI at `/` shows the request log and issued invoices, including the PDF.
 `__mock` routes let tests reset, seed, inject faults, and read state without scraping
@@ -64,7 +65,8 @@ flag), accepted `api_key` values, and fixed exchange rates so foreign-currency
 tests stay deterministic.
 
 `doklado-mock.config.example.json` ships with one organisation so zero-config
-works. Mount a file into the container or pass `--config`.
+works. Mount a file into the container or pass `--config`. Default seed uses the
+first organisation in that file.
 
 ## Try it
 
@@ -110,15 +112,107 @@ key. The same `documentId` always returns the same bytes.
 
 ## `__mock` controls
 
-No `api_key`. JSON only.
+No `api_key`. JSON only. State is in memory and disappears on restart or
+`POST /__mock/reset`.
 
 | Path                 | Role                                                                                                                  |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `POST /__mock/reset` | Clear state; counters back to config                                                                                  |
+| `POST /__mock/reset` | Clear invoices, request log, and faults; counters back to config                                                      |
 | `POST /__mock/seed`  | Load fixtures and/or series counters                                                                                  |
 | `POST /__mock/fault` | Force an error, status, or latency. `afterSuccess: true` creates the invoice first, then delays or fails the response |
 | `GET /__mock/state`  | Snapshot for tests                                                                                                    |
 | `GET /__mock/events` | SSE of store changes                                                                                                  |
+
+### Seed
+
+`POST /__mock/seed`. All fields optional.
+
+| Field      | Meaning                                                         |
+| ---------- | --------------------------------------------------------------- |
+| `now`      | Freeze the store clock to this ISO timestamp                    |
+| `series`   | `{ organizationId, exportAbbreviation, nextCounter }` overrides |
+| `invoices` | `invoice-issue` `data` objects, issued in order                 |
+
+An empty body, `{}`, or a body with neither `invoices` nor `series` issues one
+default invoice for the **first organisation in the loaded config**. Explicit
+`invoices` still use the `organizationId` you send. If any invoice fails, the
+whole seed rolls back (invoices and counters from that call).
+
+```sh
+curl -s http://127.0.0.1:3000/__mock/seed \
+  -H 'content-type: application/json' \
+  -d '{}'
+```
+
+### Fault
+
+`POST /__mock/fault`.
+
+| Field          | Meaning                                                                                        |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| `path`         | Doklado path to match, for example `/v1/documents/invoice-issue`                               |
+| `remaining`    | How many matching requests consume the fault. Omit or `null` to keep it until cleared          |
+| `clear`        | `true` removes the fault for that path and does not install a new one                          |
+| `latencyMs`    | Delay in milliseconds, capped at `30000`                                                       |
+| `httpStatus`   | If set, return this HTTP status                                                                |
+| `code`         | Application code in the JSON body                                                              |
+| `message`      | Optional message alongside `code`                                                              |
+| `afterSuccess` | Run the handler first. On a success envelope, delay and/or replace the response. Work is kept. |
+
+A fault stays in memory until `remaining` hits zero, you `clear` that path, or
+you reset. Latency runs **before** the handler unless `afterSuccess` is true, in
+which case it runs after a successful create. The mock caps delay at 30 seconds.
+If your client times out sooner than `latencyMs`, the client sees a timeout; with
+`afterSuccess` the invoice is already stored.
+
+#### One-shot failure
+
+The next `invoice-issue` fails. The one after that succeeds and creates an
+invoice.
+
+```sh
+curl -s http://127.0.0.1:3000/__mock/fault \
+  -H 'content-type: application/json' \
+  -d '{
+    "path": "/v1/documents/invoice-issue",
+    "remaining": 1,
+    "code": "APP_INCORRECT_INPUT_DATA"
+  }'
+```
+
+#### PDF-download recovery
+
+Issue an invoice and keep `documentId`. Fail the next PDF download once, then
+retry the same id. No second invoice is created.
+
+```sh
+curl -s http://127.0.0.1:3000/__mock/fault \
+  -H 'content-type: application/json' \
+  -d '{
+    "path": "/v1/documents/get-invoice-pdf",
+    "remaining": 1,
+    "httpStatus": 500
+  }'
+```
+
+#### Ambiguous creation (`afterSuccess`)
+
+The mock creates the invoice, then delays and returns failure. A client that
+times out during the delay, or treats the error as "create failed", already has
+an invoice in the store. Retrying `invoice-issue` creates another one. Inspect
+`/__mock/state` or the inspector and fetch the PDF by `documentId`.
+
+```sh
+curl -s http://127.0.0.1:3000/__mock/fault \
+  -H 'content-type: application/json' \
+  -d '{
+    "path": "/v1/documents/invoice-issue",
+    "remaining": 1,
+    "afterSuccess": true,
+    "latencyMs": 5000,
+    "code": "APP_INCORRECT_INPUT_DATA"
+  }'
+```
 
 ## Behaviour
 

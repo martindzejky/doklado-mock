@@ -58,6 +58,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - run: pnpm test
 
   build:

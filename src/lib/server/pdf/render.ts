@@ -3,14 +3,19 @@ import * as fontkit from 'fontkit';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { woffToSfnt } from './woff';
 
 const require = createRequire(import.meta.url);
 
-const LATIN_BYTES = readFileSync(
-  require.resolve('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff'),
+const LATIN_BYTES = woffToSfnt(
+  readFileSync(
+    require.resolve('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff'),
+  ),
 );
-const LATIN_EXT_BYTES = readFileSync(
-  require.resolve('@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff'),
+const LATIN_EXT_BYTES = woffToSfnt(
+  readFileSync(
+    require.resolve('@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff'),
+  ),
 );
 
 const LATIN_RAW = fontkit.create(LATIN_BYTES);
@@ -59,6 +64,14 @@ function money(value: number, currency: string): string {
   return `${value.toFixed(2)} ${currency}`;
 }
 
+/** BEHAVIOUR.md Item `price` is a gross line total. */
+export function formatItemLine(
+  item: { name: string; quantity: number; price: number; vatRate: number },
+  currency: string,
+): string {
+  return `${item.name}  ${item.quantity}  ${money(item.price, currency)}  DPH ${item.vatRate}%`;
+}
+
 export async function renderInvoicePdf(
   invoice: StoredInvoice,
 ): Promise<Uint8Array> {
@@ -91,9 +104,7 @@ export async function renderInvoicePdf(
   y -= 8;
 
   for (const item of invoice.items) {
-    line(
-      `${item.name}  ${item.quantity} × ${money(item.price, invoice.currency)}  DPH ${item.vatRate}%`,
-    );
+    line(formatItemLine(item, invoice.currency));
   }
 
   y -= 8;

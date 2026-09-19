@@ -1,3 +1,4 @@
+import { handleMockFault } from '$lib/server/mock/controls';
 import { resetStore, store } from '$lib/server/state/store';
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
@@ -47,21 +48,23 @@ beforeEach(() => {
 
 describe('auth', () => {
   test('missing api_key is 403', async () => {
-    const response = await handleInvoiceIssue(
-      issueRequest({ data: sampleInvoice }, {}),
-    );
+    const payload = { data: sampleInvoice };
+    const response = await handleInvoiceIssue(issueRequest(payload, {}));
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: 'Unauthorized!' });
+    expect(store.requests[0].requestBody).toEqual(payload);
   });
 
   test('wrong api_key is 401', async () => {
+    const payload = { data: sampleInvoice };
     const response = await handleInvoiceIssue(
-      issueRequest({ data: sampleInvoice }, { api_key: 'nope' }),
+      issueRequest(payload, { api_key: 'nope' }),
     );
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({
       error: 'You are not authorized to make this request',
     });
+    expect(store.requests[0].requestBody).toEqual(payload);
   });
 });
 
@@ -70,6 +73,7 @@ describe('envelope', () => {
     const response = await handleInvoiceIssue(issueRequest('{'));
     expect(response.status).toBe(400);
     expect(await response.text()).toContain('SyntaxError');
+    expect(store.requests[0].requestBody).toBe('{');
   });
 
   test('empty body is bare APP_INCORRECT_INPUT_DATA', async () => {
@@ -95,6 +99,52 @@ describe('envelope', () => {
       success: false,
       code: 'APP_INCORRECT_INPUT_DATA',
     });
+  });
+});
+
+describe('request log body', () => {
+  test('injected failure before processing still logs the parsed body', async () => {
+    await handleMockFault(
+      new Request('http://localhost/__mock/fault', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          path: '/v1/documents/invoice-issue',
+          remaining: 1,
+          code: 'APP_INCORRECT_INPUT_DATA',
+        }),
+      }),
+    );
+    const payload = { data: sampleInvoice };
+    const response = await handleInvoiceIssue(issueRequest(payload));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'APP_INCORRECT_INPUT_DATA',
+    });
+    expect(store.invoices).toHaveLength(0);
+    expect(store.requests[0].requestBody).toEqual(payload);
+  });
+
+  test('injected httpStatus still skips auth and logs the body', async () => {
+    await handleMockFault(
+      new Request('http://localhost/__mock/fault', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          path: '/v1/documents/invoice-issue',
+          remaining: 1,
+          httpStatus: 503,
+        }),
+      }),
+    );
+    const payload = { data: sampleInvoice };
+    const response = await handleInvoiceIssue(
+      issueRequest(payload, { api_key: 'nope' }),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: 'fault' });
+    expect(store.requests[0].requestBody).toEqual(payload);
   });
 });
 
@@ -388,8 +438,10 @@ describe('catch-alls', () => {
   test.each([
     ['GET', '/v1/documents/invoice-issue'],
     ['PUT', '/v1/documents/invoice-issue'],
+    ['OPTIONS', '/v1/documents/invoice-issue'],
     ['GET', '/v1/documents/get-invoice-pdf'],
     ['PATCH', '/v1/documents/get-invoice-pdf'],
+    ['OPTIONS', '/v1/documents/get-invoice-pdf'],
   ] as const)(
     '%s %s is logged and returns Doklado 403',
     async (method, path) => {

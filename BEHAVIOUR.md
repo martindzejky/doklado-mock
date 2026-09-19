@@ -24,10 +24,16 @@ and supplier invoices in, and the accountant's software pulls them out. Most of 
 API serves that flow, which is why it mentions Pohoda, export flags and accounting
 reference data.
 
+This file is **production research**. It records how the real API behaves, including
+endpoints this mock does not implement.
+
 Invoice issuing is a separate, later addition aimed at applications that create
-invoices programmatically. That is the part this mock cares about. The
-document-listing endpoints are here mainly so tests can read issued invoices back
-through a real documented contract.
+invoices programmatically. That is the part this mock cares about. **The mock
+implements two endpoints:** `POST /v1/documents/invoice-issue` and
+`POST /v1/documents/get-invoice-pdf`. Unknown `/v1` and `/v2` paths, including
+document listing, update, email, attachments, and export flags, are logged and
+return Doklado's 403 `{"error":"Unauthorized!"}`. They are documented below because
+they explain production, not because the mock serves them.
 
 ## Transport
 
@@ -171,6 +177,9 @@ request log flags unknown fields as a warning instead, so typos stay visible wit
 being fatal.
 
 ## Documents
+
+Listing, paging, and filters below are **observed production behaviour**. This mock
+does not implement document-listing endpoints.
 
 ### `organizationId` means two different things
 
@@ -527,7 +536,8 @@ optional `subject`, `message`, `template`, `cc` and `bcc`. Returns the bare enve
 with no data.
 
 We deliberately did not test this. It sends real mail to real people, a side effect
-outside the Doklado account. The mock records these calls and never sends anything.
+outside the Doklado account. This mock does not implement the endpoint. Those
+requests hit the catch-all, are logged, and return 403. Nothing is sent.
 
 ## Export flags
 
