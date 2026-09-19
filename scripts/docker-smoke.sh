@@ -54,7 +54,7 @@ ISSUE="$(
         "type": "issued_invoice",
         "paid": true,
         "paymentType": "card",
-        "note": "Ďakujeme za účasť, Ľuboš",
+        "note": "Ďakujeme za včasnú úhradu.",
         "items": [
           {
             "name": "Workshop",
@@ -117,7 +117,7 @@ import sys
 text = sys.argv[1]
 assert "Faktúra" in text
 assert "Ján Novák" in text
-assert "Ďakujeme za účasť, Ľuboš" in text
+assert "Ďakujeme za včasnú úhradu." in text
 assert "Workshop" in text
 assert "2" in text
 assert "246.00 EUR" in text

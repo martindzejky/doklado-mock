@@ -472,7 +472,7 @@ describe('get-invoice-pdf', () => {
       issueRequest({
         data: {
           ...sampleInvoice,
-          note: 'Ďakujeme za účasť, Ľuboš',
+          note: 'Ďakujeme za včasnú úhradu.',
         },
       }),
     );
