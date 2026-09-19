@@ -1,3 +1,4 @@
+import { loadConfig } from '$lib/server/config/load';
 import { handleInvoiceIssue } from '$lib/server/doklado/handlers';
 import { resetStore, store } from '$lib/server/state/store';
 import { beforeEach, describe, expect, test } from 'vitest';
@@ -44,6 +45,33 @@ describe('__mock/reset', () => {
 });
 
 describe('__mock/seed', () => {
+  test('empty body seeds the default fixture for the first organisation', async () => {
+    const response = await handleMockSeed(
+      new Request('http://localhost/__mock/seed', { method: 'POST' }),
+    );
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(store.invoices).toHaveLength(1);
+    expect(store.invoices[0].tenantId).toBe('12345678');
+    expect(store.invoices[0].items[0].name).toBe('Workshop');
+  });
+
+  test('default seed follows the first organisation in loaded config', async () => {
+    const config = loadConfig();
+    const first = { ...config.organisations[0], id: '99887766' };
+    resetStore({
+      ...config,
+      organisations: [first, ...config.organisations.slice(1)],
+    });
+    store.frozenNow = new Date('2026-08-05T06:29:21.350Z');
+    const response = await handleMockSeed(
+      new Request('http://localhost/__mock/seed', { method: 'POST' }),
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).success).toBe(true);
+    expect(store.invoices).toHaveLength(1);
+    expect(store.invoices[0].tenantId).toBe('99887766');
+  });
   test('loads invoices and counter overrides', async () => {
     const response = await handleMockSeed(
       new Request('http://localhost/__mock/seed', {

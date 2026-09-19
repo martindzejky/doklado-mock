@@ -4,7 +4,7 @@ import { issueInvoice } from '$lib/server/doklado/issue';
 import { issueInvoiceDataSchema } from '$lib/server/doklado/schemas';
 import { store, type Fault } from '$lib/server/state/store';
 import { z } from 'zod';
-import { SEED_INVOICE } from './seed-fixture';
+import { defaultSeedInvoice, defaultSeedOrganizationId } from './seed-fixture';
 
 const seedSchema = z.object({
   now: z
@@ -114,7 +114,9 @@ export async function handleMockSeed(request: Request): Promise<Response> {
       }
     }
   } else if (!body.series) {
-    const error = await issuedOrError(SEED_INVOICE);
+    const error = await issuedOrError(
+      defaultSeedInvoice(defaultSeedOrganizationId(store.config.organisations)),
+    );
     if (error) {
       restoreSeed(snapshot);
       return error;

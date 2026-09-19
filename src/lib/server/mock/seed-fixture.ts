@@ -1,10 +1,12 @@
-import { issueInvoiceDataSchema } from '$lib/server/doklado/schemas';
+import {
+  issueInvoiceDataSchema,
+  type IssueInvoiceData,
+} from '$lib/server/doklado/schemas';
 
-export const SEED_INVOICE = issueInvoiceDataSchema.parse({
-  organizationId: '12345678',
-  type: 'issued_invoice',
+const SEED_INVOICE_FIELDS = {
+  type: 'issued_invoice' as const,
   paid: true,
-  paymentType: 'card',
+  paymentType: 'card' as const,
   items: [
     {
       name: 'Workshop',
@@ -18,4 +20,18 @@ export const SEED_INVOICE = issueInvoiceDataSchema.parse({
     ico: '87654321',
     countryCode: 'sk',
   },
-});
+};
+
+/** First organisation in loaded config. */
+export function defaultSeedOrganizationId(
+  organisations: { id: string }[],
+): string {
+  return organisations[0].id;
+}
+
+export function defaultSeedInvoice(organizationId: string): IssueInvoiceData {
+  return issueInvoiceDataSchema.parse({
+    organizationId,
+    ...SEED_INVOICE_FIELDS,
+  });
+}
