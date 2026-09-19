@@ -138,7 +138,7 @@ describe('invoice PDF fonts', () => {
   test('embeds TTF/OTF, not WOFF, and Poppler can render Slovak text', async () => {
     const bytes = await issueAndPdf({
       ...sampleInvoice,
-      note: 'Ďakujeme za účasť, Ľuboš',
+      note: 'Ďakujeme za včasnú úhradu.',
     });
 
     const fonts = await fontFile2Streams(bytes);
@@ -169,7 +169,7 @@ describe('invoice PDF fonts', () => {
         encoding: 'utf8',
       });
       expect(text).toContain('Faktúra');
-      expect(text).toContain('Ďakujeme za účasť, Ľuboš');
+      expect(text).toContain('Ďakujeme za včasnú úhradu.');
 
       execFileSync('pdftoppm', ['-r', '72', pdfPath, join(dir, 'page')]);
       const ppm = readFileSync(join(dir, 'page-1.ppm'));
