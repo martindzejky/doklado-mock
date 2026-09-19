@@ -29,6 +29,7 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           if [ "$tag" != "$version" ]; then
             echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}."
+            echo "Use pnpm version patch|minor|major so the git tag is v plus the package version."
             exit 1
           fi
       - run: pnpm format
@@ -61,23 +62,8 @@ jobs:
       # stops npm from using GitHub OIDC. Trusted publishing needs that exchange.
       - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
-      - name: Check tag matches package.json
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          version="$(node -p "require('./package.json').version")"
-          if [ "$tag" != "$version" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}."
-            exit 1
-          fi
       - run: pnpm build
-      - name: Publish to npm
-        run: |
-          version="$(node -p "require('./package.json').version")"
-          if [[ "$version" == *-* ]]; then
-            pnpm publish --access public --no-git-checks --provenance --tag next
-          else
-            pnpm publish --access public --no-git-checks --provenance
-          fi
+      - run: pnpm publish --access public --no-git-checks --provenance
 
   ghcr:
     name: ghcr
@@ -88,17 +74,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v6
-      - name: Check tag matches package.json
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          version="$(node -p "require('./package.json').version")"
-          if [ "$tag" != "$version" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}."
-            exit 1
-          fi
-      - name: Package version
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -112,8 +88,6 @@ jobs:
           images: ghcr.io/martindzejky/doklado-mock
           tags: |
             type=semver,pattern={{version}}
-          flavor: |
-            latest=auto
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -123,5 +97,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ steps.version.outputs.version }}
+            VERSION=${{ env.VERSION }}
             REVISION=${{ github.sha }}
