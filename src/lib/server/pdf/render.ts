@@ -3,14 +3,19 @@ import * as fontkit from 'fontkit';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { woffToSfnt } from './woff';
 
 const require = createRequire(import.meta.url);
 
-const LATIN_BYTES = readFileSync(
-  require.resolve('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff'),
+const LATIN_BYTES = woffToSfnt(
+  readFileSync(
+    require.resolve('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff'),
+  ),
 );
-const LATIN_EXT_BYTES = readFileSync(
-  require.resolve('@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff'),
+const LATIN_EXT_BYTES = woffToSfnt(
+  readFileSync(
+    require.resolve('@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff'),
+  ),
 );
 
 const LATIN_RAW = fontkit.create(LATIN_BYTES);
