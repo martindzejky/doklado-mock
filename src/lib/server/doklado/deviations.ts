@@ -1,6 +1,15 @@
 /**
- * Intentional differences from production. Each entry points at the
- * BEHAVIOUR.md section that records the real behaviour.
+ * Intentional differences between this mock and production.
+ *
+ * The mock copies observed Doklado behaviour. Entries here are the exceptions:
+ * places we deliberately do not fake a production bug because we never isolated
+ * the real rule. Each entry points at the BEHAVIOUR.md section that records
+ * what production actually does.
+ *
+ * This file is mock vs production. Spec vs production lives in
+ * contradictions.ts. HTTP behaviour is tested in handlers.test.ts, not here.
+ * deviations.test.ts only checks that the catalogue still names these
+ * exceptions so nobody "fixes" them later.
  */
 export const deviations = [
   {
