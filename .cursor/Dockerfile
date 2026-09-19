@@ -90,6 +90,7 @@ ADD --keep-git-dir=true \
 RUN mkdir -p /home/ubuntu/.cursor && \
     cd /home/ubuntu/.agentfiles && \
     git submodule update --init --recursive && \
+    . "$NVM_DIR/nvm.sh" && \
     HOME=/home/ubuntu ./install
 
 RUN chown -R ubuntu:ubuntu /home/ubuntu
