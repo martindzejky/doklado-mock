@@ -34,7 +34,7 @@ wait_for_server() {
   local base="$1"
   local i
   for i in $(seq 1 30); do
-    if curl -sSf "$base/" | grep -q doklado-mock; then
+    if curl -sSf "$base/" 2>/dev/null | grep -q doklado-mock; then
       return 0
     fi
     sleep 1

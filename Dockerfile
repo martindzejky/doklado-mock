@@ -21,7 +21,8 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts \
+  && rm -rf /root/.cache /root/.local
 
 COPY --from=build /app/build ./build
 COPY doklado-mock.config.example.json LICENSE ./
