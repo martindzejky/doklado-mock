@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
-import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const server = join(root, 'build/index.js');
@@ -19,9 +18,8 @@ Options:
   --help     Show this help
 
 Examples:
-  doklado-mock
+  npx @martindzejky/doklado-mock
   doklado-mock --port 4010 --config ./doklado-mock.config.json
-  pnpm build && doklado-mock --port 3000
 `;
 }
 
@@ -40,6 +38,14 @@ function readArg(argv, name) {
     process.exit(1);
   }
   return value;
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function resolveFromCwd(value) {
+  return isAbsolute(value) ? value : resolve(process.cwd(), value);
 }
 
 const argv = process.argv.slice(2);
@@ -66,7 +72,7 @@ for (let i = 0; i < argv.length; i++) {
 
 if (!existsSync(server)) {
   console.error('Error: production build not found.');
-  console.error('  pnpm build && doklado-mock --port 3000');
+  console.error('If you are in the source repository, run pnpm build first.');
   process.exit(1);
 }
 
@@ -74,20 +80,8 @@ const port = readArg(argv, '--port') ?? process.env.PORT ?? '3000';
 const host = readArg(argv, '--host') ?? process.env.HOST ?? '127.0.0.1';
 const config = readArg(argv, '--config') ?? process.env.DOKLADO_MOCK_CONFIG;
 
-const env = {
-  ...process.env,
-  PORT: port,
-  HOST: host,
-};
-if (config) env.DOKLADO_MOCK_CONFIG = config;
+process.env.PORT = port;
+process.env.HOST = host;
+if (config) process.env.DOKLADO_MOCK_CONFIG = resolveFromCwd(config);
 
-const child = spawn(process.execPath, [server], {
-  cwd: root,
-  env,
-  stdio: 'inherit',
-});
-
-child.on('exit', (code, signal) => {
-  if (signal) process.kill(process.pid, signal);
-  process.exit(code ?? 1);
-});
+await import(pathToFileURL(server).href);

@@ -1,5 +1,6 @@
 services:
   doklado-mock:
+    image: ghcr.io/martindzejky/doklado-mock:latest
     build: .
     ports:
       - '3000:3000'

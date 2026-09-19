@@ -25,40 +25,49 @@ HTML.
 
 ## Run it
 
-Node 24 and pnpm 11.7.0.
+Node 24+. `--host` defaults to `127.0.0.1`. `HOST`, `PORT`, and
+`DOKLADO_MOCK_CONFIG` work as environment variables. `--config` paths are
+relative to the directory you run the command in.
 
 ```sh
-cp doklado-mock.config.example.json doklado-mock.config.json
+npx @martindzejky/doklado-mock
+npx @martindzejky/doklado-mock --port 4010 --config ./doklado-mock.config.json
+```
+
+```sh
+docker run --rm -p 3000:3000 ghcr.io/martindzejky/doklado-mock:latest
+```
+
+The image listens on `0.0.0.0:3000`. Publish that port for the inspector. Other
+Compose services should call `http://doklado-mock:3000`. Mount a config at
+`/app/doklado-mock.config.json`.
+
+```yaml
+services:
+  doklado-mock:
+    image: ghcr.io/martindzejky/doklado-mock:latest
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./doklado-mock.config.json:/app/doklado-mock.config.json:ro
+```
+
+From this repository:
+
+```sh
 pnpm install
 pnpm build
 pnpm start
 ```
 
-Or after a build:
-
-```sh
-node bin/doklado-mock.js --port 3000 --config ./doklado-mock.config.json
-```
-
-`node bin/doklado-mock.js --help` prints the flags. `--host` defaults to
-`127.0.0.1`. `HOST`, `PORT`, and `DOKLADO_MOCK_CONFIG` work as environment
-variables as well.
-
-Docker:
-
 ```sh
 docker compose up --build
 ```
 
-`./scripts/docker-smoke.sh` builds that image, waits until it answers, then issues an
-invoice and fetches its PDF.
-
 The inspector and `__mock` controls have no `api_key`. They are for local use.
-Docker binds `0.0.0.0` inside the container.
-
-Point your application at `http://127.0.0.1:3000` instead of the real Doklado
-gateway. The accepted `api_key` header value is `test-api-key` unless you change
-the config. The example organisation IČO is `12345678`.
+Point your application at `http://127.0.0.1:3000`. The accepted `api_key` is
+`test-api-key` unless you change the config. The example organisation IČO is
+`12345678`.
 
 ## Config
 
@@ -228,6 +237,18 @@ published OpenAPI document. Where the two disagree, production wins.
   OpenAPI document, checked for drift on a schedule.
 
 This mock never talks to real Doklado.
+
+## Releases
+
+GitHub Actions publishes npm and GHCR from version tags. Do not publish from
+your machine.
+
+On `master`:
+
+```sh
+pnpm version patch
+git push origin master --follow-tags
+```
 
 ## Licence
 
