@@ -98,13 +98,24 @@ async function isSuccessEnvelope(response: Response): Promise<boolean> {
   }
 }
 
+function captureRequestBody(text: string): {
+  requestBody: unknown;
+  parseError?: unknown;
+} {
+  if (!text) return { requestBody: undefined };
+  try {
+    return { requestBody: JSON.parse(text) };
+  } catch (error) {
+    return { requestBody: text, parseError: error };
+  }
+}
+
 export async function withDoklado(
   request: Request,
   run: DokladoRun,
 ): Promise<Response> {
   const started = performance.now();
   const path = pathnameOf(request);
-  let requestBody: unknown;
   let unknownFields: string[] = [];
   let response: Response;
 
@@ -116,6 +127,10 @@ export async function withDoklado(
     await sleep(latencyMs);
   }
 
+  const text = await request.text();
+  const captured = captureRequestBody(text);
+  const requestBody = captured.requestBody;
+
   if (!afterSuccess && hasInjectedError(fault)) {
     response = faultResponse(fault);
   } else {
@@ -125,47 +140,32 @@ export async function withDoklado(
     } else if (!store.config.apiKeys.includes(apiKey)) {
       response = wrongApiKey();
     } else {
-      const text = await request.text();
       // BEHAVIOUR.md Errors: empty body is bare APP_INCORRECT_INPUT_DATA, not HTML 400.
       if (text.trim() === '') {
         response = bareError(APP_INCORRECT_INPUT_DATA);
+      } else if (captured.parseError) {
+        response = malformedJson(captured.parseError);
+      } else if (
+        requestBody === null ||
+        typeof requestBody !== 'object' ||
+        Array.isArray(requestBody) ||
+        !('data' in requestBody)
+      ) {
+        response = bareError(APP_INCORRECT_INPUT_DATA);
       } else {
-        try {
-          requestBody = JSON.parse(text);
-        } catch (error) {
-          response = malformedJson(error);
-          const responseBody = await loggedBody(response);
-          store.log({
-            method: request.method,
-            path,
-            status: response.status,
-            code: codeOf(responseBody),
-            durationMs: Math.round(performance.now() - started),
-            requestBody,
-            responseBody,
-            unknownFields,
-          });
-          return response;
-        }
-
-        if (
-          requestBody === null ||
-          typeof requestBody !== 'object' ||
-          Array.isArray(requestBody) ||
-          !('data' in requestBody)
-        ) {
-          response = bareError(APP_INCORRECT_INPUT_DATA);
-        } else {
-          const result = unwrap(
-            await run((requestBody as { data: unknown }).data),
-          );
-          response = result.response;
-          unknownFields = result.unknownFields;
-        }
+        const result = unwrap(
+          await run((requestBody as { data: unknown }).data),
+        );
+        response = result.response;
+        unknownFields = result.unknownFields;
       }
     }
 
-    if (afterSuccess && (await isSuccessEnvelope(response))) {
+    if (
+      !captured.parseError &&
+      afterSuccess &&
+      (await isSuccessEnvelope(response))
+    ) {
       if (latencyMs) await sleep(latencyMs);
       if (hasInjectedError(fault)) {
         response = faultResponse(fault);
