@@ -14,7 +14,7 @@ import {
   decodePDFRawStream,
 } from 'pdf-lib';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { pdfBytesFor } from './render';
+import { formatItemLine, pdfBytesFor } from './render';
 import { woffToSfnt } from './woff';
 
 const require = createRequire(import.meta.url);
@@ -110,6 +110,17 @@ function ppmNonWhitePixels(ppm: Uint8Array): number {
   return count;
 }
 
+describe('formatItemLine', () => {
+  test('shows quantity and the stored gross line total, not a unit price', () => {
+    expect(
+      formatItemLine(
+        { name: 'Workshop', quantity: 2, price: 246, vatRate: 23 },
+        'EUR',
+      ),
+    ).toBe('Workshop  2  246.00 EUR  DPH 23%');
+  });
+});
+
 describe('woffToSfnt', () => {
   test('converts fontsource WOFF to TTF that fontkit can open', () => {
     const woff = readFileSync(
@@ -163,6 +174,44 @@ describe('invoice PDF fonts', () => {
       execFileSync('pdftoppm', ['-r', '72', pdfPath, join(dir, 'page')]);
       const ppm = readFileSync(join(dir, 'page-1.ppm'));
       expect(ppmNonWhitePixels(ppm)).toBeGreaterThan(100);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('quantity greater than one prints the line total once', async () => {
+    const bytes = await issueAndPdf({
+      ...sampleInvoice,
+      items: [
+        {
+          name: 'Workshop',
+          unitPriceWithoutVat: 100,
+          vatRate: 23,
+          quantity: 2,
+        },
+      ],
+    });
+    const invoice = store.invoices[0];
+    expect(invoice.items[0]).toMatchObject({ quantity: 2, price: 246 });
+    expect(invoice.totalPrice).toBe(246);
+
+    if (!hasPoppler()) {
+      if (process.env.CI) {
+        throw new Error('poppler-utils is required in CI to rasterize PDFs');
+      }
+      return;
+    }
+
+    const dir = mkdtempSync(join(tmpdir(), 'doklado-pdf-qty-'));
+    const pdfPath = join(dir, 'invoice.pdf');
+    writeFileSync(pdfPath, bytes);
+    try {
+      const text = execFileSync('pdftotext', ['-layout', pdfPath, '-'], {
+        encoding: 'utf8',
+      });
+      expect(text).toMatch(/Workshop\s+2\s+246\.00 EUR\s+DPH 23%/);
+      expect(text).toContain('Spolu: 246.00 EUR');
+      expect(text).not.toContain('492.00');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
