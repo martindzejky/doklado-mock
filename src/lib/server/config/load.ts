@@ -3,9 +3,32 @@ import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mockConfigSchema, type MockConfig } from './schema';
 
-const PACKAGE_ROOT = join(
+const PACKAGE_NAME = '@martindzejky/doklado-mock';
+
+function findPackageRoot(start: string): string {
+  let dir = start;
+  for (;;) {
+    const pkgFile = join(dir, 'package.json');
+    if (existsSync(pkgFile)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgFile, 'utf8')) as {
+          name?: string;
+        };
+        if (pkg.name === PACKAGE_NAME) return dir;
+      } catch {
+        // Keep walking if this package.json is unreadable.
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      throw new Error(`Could not find ${PACKAGE_NAME} package root`);
+    }
+    dir = parent;
+  }
+}
+
+export const PACKAGE_ROOT = findPackageRoot(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../..',
 );
 
 export const EXAMPLE_CONFIG_PATH = join(
