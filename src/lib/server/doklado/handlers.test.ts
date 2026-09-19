@@ -438,8 +438,10 @@ describe('catch-alls', () => {
   test.each([
     ['GET', '/v1/documents/invoice-issue'],
     ['PUT', '/v1/documents/invoice-issue'],
+    ['OPTIONS', '/v1/documents/invoice-issue'],
     ['GET', '/v1/documents/get-invoice-pdf'],
     ['PATCH', '/v1/documents/get-invoice-pdf'],
+    ['OPTIONS', '/v1/documents/get-invoice-pdf'],
   ] as const)(
     '%s %s is logged and returns Doklado 403',
     async (method, path) => {

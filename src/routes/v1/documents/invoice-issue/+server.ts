@@ -7,9 +7,5 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = ({ request }) =>
   handleInvoiceIssue(request);
 
-const unsupported: RequestHandler = ({ request }) => handleCatchAll(request);
-
-export const GET = unsupported;
-export const PUT = unsupported;
-export const PATCH = unsupported;
-export const DELETE = unsupported;
+export const fallback: RequestHandler = ({ request }) =>
+  handleCatchAll(request);
