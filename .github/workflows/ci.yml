@@ -1,8 +1,10 @@
 name: CI
 
 on:
-  - push
-  - pull_request
+  push:
+    tags-ignore:
+      - 'v*.*.*'
+  pull_request:
 
 permissions:
   contents: read
@@ -103,3 +105,19 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - name: Smoke test Docker Compose
         run: ./scripts/docker-smoke.sh
+
+  pack:
+    name: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Smoke test npm pack
+        run: ./scripts/pack-smoke.sh
