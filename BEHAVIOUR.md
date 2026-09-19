@@ -13,9 +13,18 @@ Every statement below is tagged:
 - **Inferred.** Taken from the spec, not yet confirmed against production.
 - **Unknown.** Neither, flagged so it is not mistaken for fact.
 
-A snapshot of their document lives in `spec/swagger.json` (version `2025.2.18`,
-fetched 2026-08-05 from <https://api-doc.doklado.sk/swagger.json>). A scheduled job
-re-fetches it and fails when it changes, so drift becomes visible.
+A snapshot of their document lives in `spec/swagger.json` (info.version still
+`2025.2.18`, fetched 2026-09-19 from <https://api-doc.doklado.sk/swagger.json>).
+A scheduled job re-fetches it and fails when the bytes change, so drift becomes
+visible.
+
+The 2026-09-19 refresh did not change `POST /v1/documents/invoice-issue`,
+`POST /v1/documents/get-invoice-pdf`, or any schema those two `$ref`. Shared
+paths other than two listing request bodies were also unchanged. The live
+document grew by eight paths and twenty schemas. Those additions, and the
+listing-filter edits, are **Inferred** from the spec. They are not observed
+production behaviour. Details sit with the endpoints they belong to. The mock
+still implements only the two issuing routes.
 
 ## Scope
 
@@ -31,9 +40,13 @@ Invoice issuing is a separate, later addition aimed at applications that create
 invoices programmatically. That is the part this mock cares about. **The mock
 implements two endpoints:** `POST /v1/documents/invoice-issue` and
 `POST /v1/documents/get-invoice-pdf`. Unknown `/v1` and `/v2` paths, including
-document listing, update, email, attachments, and export flags, are logged and
-return Doklado's 403 `{"error":"Unauthorized!"}`. They are documented below because
-they explain production, not because the mock serves them.
+document listing, update, email, attachments, export flags, and the 2026-09-19
+additions (`/v2/documents/get`, `/v2/documents/changes`, bank transactions), are
+logged and return Doklado's 403 `{"error":"Unauthorized!"}`. `/v3` organisation
+management paths are also unimplemented. They are not on the v1/v2 catch-all, so
+they currently 404 like any other unknown Kit route. Production `/v3` error
+shapes are **Unknown**. Extra endpoints are documented below because they
+explain the published spec, not because the mock serves them.
 
 ## Transport
 
@@ -164,7 +177,9 @@ Express HTML error page rather than JSON. Authentication failures behave as desc
 above.
 
 **Unknown.** Whether `APP_MAX_EXPORT_LIMIT_EXCEEDED`, `APP_READ_DATA_ERROR` or
-`SAVE_DATA_ERROR_CODE` are still emitted, and what triggers them.
+`SAVE_DATA_ERROR_CODE` are still emitted, and what triggers them. The 2026-09-19
+spec newly documents `APP_INSUFFICIENT_PERMISSIONS` on `/v2/documents/changes`.
+We have not seen that code in production.
 
 ## Unknown fields are ignored
 
@@ -334,6 +349,17 @@ the field names that appear on documents, so the obvious guess `createdAt` fails
 **Unknown.** Whether `isExported` actually filters. Both `true` and `false` returned a
 full page of 50, and documents never carry an `isExported` field, so we could not
 confirm the effect. We did not test the date filters.
+
+**Inferred.** The 2026-09-19 spec adds an optional `approvalStatus` array filter
+on `/v2/documents` and `/v1/unprocessed-documents`, with values `default`,
+`rejected`, `approved`, `returned`. `ApprovalStatus` already existed on returned
+documents in the previous snapshot. Using it as a list filter is new in the spec.
+We have not sent it. The mock does not implement listing.
+
+**Unknown.** The unprocessed-documents `dateType` enum in the spec changed from
+`create`/`issue` to `create`/`delivery`. We never tested date filters, so we do
+not know which pair production accepts. A spec edit is not evidence that
+production changed.
 
 ## Issuing an invoice
 
@@ -648,6 +674,19 @@ cost centres and VAT classifications. No application issuing invoices needs it. 
 configure numbering series in the Doklado web interface instead, and the mock
 represents that configuration in its own config file.
 
+The 2026-09-19 spec also documents these, all **Inferred** and unimplemented:
+
+- `POST /v2/documents/get` fetches one document by `documentId`.
+- `POST /v2/documents/changes` returns change history for up to ten documents, and
+  is the first place the spec lists `APP_INSUFFICIENT_PERMISSIONS`.
+- `POST /v1/organization/bank-transactions` returns transactions and balances.
+- `POST /v3/organization/manage/create`, `list`, `update`, `assign-member`, and
+  `accounting-settings/sync` manage organisations.
+
+`/v1` and `/v2` unknowns still hit the catch-all and return 403. `/v3` is not on
+that catch-all. We have not called production `/v3`, so we do not know the real
+auth shape, and we are not inventing a 403 for it.
+
 ## Open questions
 
 Worth resolving next time there is a reason to touch production:
@@ -662,3 +701,7 @@ Worth resolving next time there is a reason to touch production:
   document listing only the bare one, and the rest are untested.
 - What the other four `type` values do, and whether credit notes carry a reference
   to the invoice they correct.
+- Whether listing `approvalStatus` actually filters.
+- Which `dateType` values `/v1/unprocessed-documents` accepts after the spec
+  changed from `issue` to `delivery`.
+- What `/v3/organization/manage/*` returns for a missing or wrong `api_key`.
