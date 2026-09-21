@@ -99,10 +99,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          # Node 24 strips types so the .ts script runs without pnpm.
+          node-version: 24
       - name: Install Poppler
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - name: Smoke test Docker Compose
-        run: ./scripts/docker-smoke.sh
+        run: node scripts/docker-smoke.ts
 
   pack:
     name: pack
@@ -118,4 +122,4 @@ jobs:
       - name: Install Poppler
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - name: Smoke test npm pack
-        run: ./scripts/pack-smoke.sh
+        run: node scripts/pack-smoke.ts

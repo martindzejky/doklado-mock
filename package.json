@@ -42,7 +42,7 @@
     "build": "vite build",
     "start": "node build/index.js",
     "doklado-mock": "node bin/doklado-mock.js",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit -p scripts/tsconfig.json",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "lint": "eslint --max-warnings 0 .",
@@ -50,7 +50,9 @@
     "fix": "pnpm format:fix; pnpm lint:fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "swagger:drift": "node scripts/check-swagger-drift.ts"
+    "swagger:drift": "node scripts/check-swagger-drift.ts",
+    "smoke:docker": "node scripts/docker-smoke.ts",
+    "smoke:pack": "node scripts/pack-smoke.ts"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.5",

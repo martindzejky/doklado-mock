@@ -40,9 +40,9 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - name: Smoke test npm pack
-        run: ./scripts/pack-smoke.sh
+        run: node scripts/pack-smoke.ts
       - name: Smoke test Docker Compose
-        run: ./scripts/docker-smoke.sh
+        run: node scripts/docker-smoke.ts
 
   npm:
     name: npm

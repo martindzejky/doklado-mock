@@ -31,8 +31,8 @@ If anything is unclear or instructions conflict, STOP and ask.
 
 After you finish, run `pnpm fix`, `pnpm check`, and `pnpm test` (and `pnpm build` when relevant).
 PDF tests need `poppler-utils` (`pdftotext`, `pdffonts`).
-If you change Docker, Compose, hooks, or invoice PDFs, run `scripts/docker-smoke.sh`. Inspector on `127.0.0.1` should work. API on the Compose hostname must stay 200. Inspector on that hostname 308s on purpose.
-If you change the published package or CLI, run `scripts/pack-smoke.sh`.
+If you change Docker, Compose, hooks, or invoice PDFs, run `node scripts/docker-smoke.ts`. Inspector on `127.0.0.1` should work. API on the Compose hostname must stay 200. Inspector on that hostname 308s on purpose.
+If you change the published package or CLI, run `node scripts/pack-smoke.ts`.
 Write simple, minimal code. Prefer existing patterns.
 Svelte 5 runes. The prop is `class`, not `className`. Events are `onclick`.
 Do not add unrequested features or APIs.
