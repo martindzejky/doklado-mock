@@ -1,0 +1,54 @@
+---
+description: Agent context and workflow
+alwaysApply: true
+---
+
+# Agent instructions
+
+**Read `README.md` first** for what the mock covers, how to run it, config, and `__mock` controls.
+Read `BEHAVIOUR.md` before changing API behaviour. Where that file and `spec/swagger.json` disagree, production (`BEHAVIOUR.md`) wins.
+If docs and code disagree, trust code and update docs in the same change.
+If anything is unclear or instructions conflict, STOP and ask.
+
+## Project purpose
+
+- Local fake Doklado for invoice issue and PDF download. State is in memory.
+- Scope is those two POST routes, v1/v2 catch-alls, the inspector UI, and `__mock` controls.
+- Do not implement other Doklado endpoints unless asked.
+- Never call real Doklado.
+- This repo documents only the mock. Do not mention sibling apps or later sibling repos.
+
+## Project structure
+
+- Implementation lives under `src`. SvelteKit file routing: Doklado routes in `src/routes/v1` and `src/routes/v2`, inspector in `src/routes`, `__mock` in `src/routes/__mock`.
+- `src/lib/server/doklado` is the fake API. `src/lib/server/mock` is `__mock`. `src/lib/server/state` is the in-memory store. `src/lib/server/pdf` renders invoices. `src/lib/server/config` loads JSON config.
+- `src/lib/server/doklado/deviations.ts` is mock vs production. `contradictions.ts` is spec vs production. `deviations.test.ts` is a catalogue contract, not handler tests. HTTP behaviour belongs in `handlers.test.ts`.
+- CLI is `bin/doklado-mock.js`. Keep the caller's cwd. Import `build/index.js` in-process. Resolve `--config` against `process.cwd()`.
+- `spec/swagger.json` is a vendored snapshot. Do not reformat it. Drift is a byte check (`pnpm swagger:drift`).
+- Plans `PLAN.md` and `PLAN.full-mock.md` live in git history, not the working tree.
+
+## Code and verification
+
+After you finish, run `pnpm fix`, `pnpm check`, and `pnpm test` (and `pnpm build` when relevant).
+PDF tests need `poppler-utils` (`pdftotext`, `pdffonts`).
+If you change Docker, Compose, hooks, or invoice PDFs, run `scripts/docker-smoke.sh`. Inspector on `127.0.0.1` should work. API on the Compose hostname must stay 200. Inspector on that hostname 308s on purpose.
+If you change the published package or CLI, run `scripts/pack-smoke.sh`.
+Write simple, minimal code. Prefer existing patterns.
+Svelte 5 runes. The prop is `class`, not `className`. Events are `onclick`.
+Do not add unrequested features or APIs.
+Store temporary artifacts in `tmp/`, not the repo root.
+
+`lefthook` runs `pnpm check`, `pnpm lint`, `pnpm format`, and `pnpm test` on `git push`.
+
+## Releases
+
+GitHub Actions publishes npm and GHCR from version tags. Do not publish from your machine.
+
+On `master`:
+
+```sh
+pnpm version patch
+git push origin master --follow-tags
+```
+
+Standard `v*.*.*` tags only. Do not add `registry-url` to `setup-node` in the publish workflow. That breaks OIDC trusted publishing.

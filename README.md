@@ -238,18 +238,6 @@ published OpenAPI document. Where the two disagree, production wins.
 
 This mock never talks to real Doklado.
 
-## Releases
-
-GitHub Actions publishes npm and GHCR from version tags. Do not publish from
-your machine.
-
-On `master`:
-
-```sh
-pnpm version patch
-git push origin master --follow-tags
-```
-
 ## Licence
 
 MIT. See [LICENSE](./LICENSE).
