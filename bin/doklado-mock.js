@@ -3,6 +3,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { parseArgs } from 'node:util';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const server = join(root, 'build/index.js');
@@ -24,23 +25,6 @@ Examples:
 }
 
 /**
- * @param {string[]} argv
- * @param {string} name
- * @returns {string | undefined}
- */
-function readArg(argv, name) {
-  const index = argv.indexOf(name);
-  if (index === -1) return undefined;
-  const value = argv[index + 1];
-  if (!value || value.startsWith('-')) {
-    console.error(`Error: ${name} requires a value.`);
-    console.error(help());
-    process.exit(1);
-  }
-  return value;
-}
-
-/**
  * @param {string} value
  * @returns {string}
  */
@@ -48,27 +32,35 @@ function resolveFromCwd(value) {
   return isAbsolute(value) ? value : resolve(process.cwd(), value);
 }
 
-const argv = process.argv.slice(2);
-if (argv.includes('--help') || argv.includes('-h')) {
-  process.stdout.write(help());
-  process.exit(0);
+/**
+ * @returns {{ port?: string, host?: string, config?: string }}
+ */
+function parseCli() {
+  const argv = process.argv.slice(2);
+  if (argv.includes('--help') || argv.includes('-h')) {
+    process.stdout.write(help());
+    process.exit(0);
+  }
+
+  try {
+    const { values } = parseArgs({
+      args: argv,
+      options: {
+        port: { type: 'string' },
+        host: { type: 'string' },
+        config: { type: 'string' },
+      },
+    });
+    return values;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error: ${message}`);
+    console.error(help());
+    process.exit(1);
+  }
 }
 
-const known = new Set(['--port', '--host', '--config', '--help', '-h']);
-for (let i = 0; i < argv.length; i++) {
-  const arg = argv[i];
-  if (!arg.startsWith('-')) {
-    console.error(`Error: unexpected argument ${arg}.`);
-    console.error(help());
-    process.exit(1);
-  }
-  if (!known.has(arg)) {
-    console.error(`Error: unknown option ${arg}.`);
-    console.error(help());
-    process.exit(1);
-  }
-  if (arg === '--port' || arg === '--host' || arg === '--config') i += 1;
-}
+const { port, host, config } = parseCli();
 
 if (!existsSync(server)) {
   console.error('Error: production build not found.');
@@ -76,12 +68,8 @@ if (!existsSync(server)) {
   process.exit(1);
 }
 
-const port = readArg(argv, '--port') ?? process.env.PORT ?? '3000';
-const host = readArg(argv, '--host') ?? process.env.HOST ?? '127.0.0.1';
-const config = readArg(argv, '--config') ?? process.env.DOKLADO_MOCK_CONFIG;
-
-process.env.PORT = port;
-process.env.HOST = host;
+process.env.PORT = port ?? process.env.PORT ?? '3000';
+process.env.HOST = host ?? process.env.HOST ?? '127.0.0.1';
 if (config) process.env.DOKLADO_MOCK_CONFIG = resolveFromCwd(config);
 
 await import(pathToFileURL(server).href);
