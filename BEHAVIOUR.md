@@ -398,9 +398,12 @@ Those two messages are alternative checks on the same field. The first names a
 lowercase country-code enum. The second expects the literal `"other"`. They do
 not describe two invalid fields.
 
-**Inferred** from that error text, not from a successful production call. The
-messages name the lowercase codes and `"other"` as the expected alternatives.
-They do not show that `"sk"` or `"other"` succeed against production.
+**Observed** on 2026-09-23. A later call to the same endpoint with
+`customer.countryCode: "sk"` issued an invoice.
+
+**Inferred** from the `"SK"` rejection, not from a successful production call.
+The messages also name the rest of that lowercase list and the literal
+`"other"`. `"other"` has not been confirmed by a successful issue.
 
 The mock accepts a lowercase code from that list, or `"other"`, and rejects any
 other string. Uppercase and mixed case fail as sent. The field may still be
