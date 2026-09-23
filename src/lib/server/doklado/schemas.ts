@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { COUNTRY_CODES } from './country-codes';
 
 export const ISSUE_TYPES = [
   'issued_invoice',
@@ -44,7 +45,11 @@ const customerSchema = z.object({
   nonCorporateEntity: z.boolean().nullable().optional(),
   registerNumberText: z.string().nullable().optional(),
   vatRegistrationType: z.string().nullable().optional(),
-  countryCode: z.string().nullable().optional(),
+  // BEHAVIOUR.md customer.countryCode: lowercase enum or the literal "other".
+  countryCode: z
+    .union([z.enum(COUNTRY_CODES), z.literal('other')])
+    .nullable()
+    .optional(),
   deliveryAddress: z.unknown().optional(),
 });
 
