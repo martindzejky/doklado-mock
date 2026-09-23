@@ -9,7 +9,8 @@ wrong in several places, so where the two disagree, **observed behaviour wins**.
 
 Every statement below is tagged:
 
-- **Observed.** Seen in a real response on 2026-08-05.
+- **Observed.** Seen in a real response on 2026-08-05, unless the section names a
+  later date.
 - **Inferred.** Taken from the spec, not yet confirmed against production.
 - **Unknown.** Neither, flagged so it is not mistaken for fact.
 
@@ -384,6 +385,30 @@ Firestore identifiers.
 `customer`. `issueDate`, `dueDate`, `deliveryDate` and `currency` are all optional
 and default as described under Dates and Currency. Currency defaults to EUR, which
 is presumably the organisation's own rather than a constant.
+
+### `customer.countryCode`
+
+**Observed** on 2026-09-23. `POST /v1/documents/invoice-issue` returned HTTP 200
+for `customer.countryCode: "SK"`. `success` is false, `code` is
+`APP_INCORRECT_INPUT_DATA`, and both messages sit on
+`data.properties.customer.properties.countryCode`. The complete body is
+`spec/observations/2026-09-23-invoice-issue-country-code-sk.json`.
+
+Those two messages are alternative checks on the same field. The first names a
+lowercase country-code enum. The second expects the literal `"other"`. They do
+not describe two invalid fields.
+
+**Observed** on 2026-09-23. A later call to the same endpoint with
+`customer.countryCode: "sk"` issued an invoice.
+
+**Inferred** from the `"SK"` rejection, not from a successful production call.
+The messages also name the rest of that lowercase list and the literal
+`"other"`. `"other"` has not been confirmed by a successful issue.
+
+The mock accepts a lowercase code from that list, or `"other"`, and rejects any
+other string. Uppercase and mixed case fail as sent. The field may still be
+omitted or `null`, because this call does not say what production does with
+those.
 
 **Observed.** Doklado derives the variable symbol from the digits of the invoice
 number when `paymentInfo.variableSymbol` is omitted. `TEST-0001` produced

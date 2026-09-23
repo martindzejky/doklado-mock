@@ -1,5 +1,6 @@
 import { handleMockFault } from '$lib/server/mock/controls';
 import { resetStore, store } from '$lib/server/state/store';
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
   handleCatchAll,
@@ -296,6 +297,76 @@ describe('numbering', () => {
       code: 'APP_ORGANIZATION_NOT_FOUND',
     });
   });
+});
+
+const uppercaseCountryCodeRejection = JSON.parse(
+  readFileSync(
+    'spec/observations/2026-09-23-invoice-issue-country-code-sk.json',
+    'utf8',
+  ),
+);
+
+function defaultCounter(): number {
+  const org = store.findOrg('12345678');
+  if (!org) throw new Error('missing organisation');
+  return store.defaultSeries(org).nextCounter;
+}
+
+describe('customer.countryCode', () => {
+  test.each(['sk', 'cz', 'other'] as const)(
+    '%s passes validation and issues an invoice',
+    async (countryCode) => {
+      const response = await handleInvoiceIssue(
+        issueRequest({
+          data: {
+            ...sampleInvoice,
+            customer: { ...sampleInvoice.customer, countryCode },
+          },
+        }),
+      );
+      expect(response.status).toBe(200);
+      expect((await response.json()).success).toBe(true);
+      expect(store.invoices).toHaveLength(1);
+      expect(defaultCounter()).toBe(2);
+    },
+  );
+
+  test.each(['SK', 'Sk', 'zz'] as const)(
+    '%s matches the observed error and does not issue',
+    async (countryCode) => {
+      const before = defaultCounter();
+      const response = await handleInvoiceIssue(
+        issueRequest({
+          data: {
+            ...sampleInvoice,
+            customer: { ...sampleInvoice.customer, countryCode },
+          },
+        }),
+      );
+      expect(response.status).toBe(200);
+      // Zod names the alternatives, not the submitted value, so Sk and zz
+      // produce the same body as the observed SK rejection.
+      expect(await response.json()).toEqual(uppercaseCountryCodeRejection);
+      expect(store.invoices).toHaveLength(0);
+      expect(defaultCounter()).toBe(before);
+    },
+  );
+
+  test.each([undefined, null] as const)(
+    'countryCode %s still issues',
+    async (countryCode) => {
+      const customer = { ...sampleInvoice.customer, countryCode };
+      if (countryCode === undefined) delete customer.countryCode;
+      const response = await handleInvoiceIssue(
+        issueRequest({
+          data: { ...sampleInvoice, customer },
+        }),
+      );
+      expect(response.status).toBe(200);
+      expect((await response.json()).success).toBe(true);
+      expect(store.invoices).toHaveLength(1);
+    },
+  );
 });
 
 describe('validation and stored fields', () => {
