@@ -1,6 +1,6 @@
 {
   "name": "@martindzejky/doklado-mock",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A local fake Doklado for issuing invoices and fetching their PDFs.",
   "type": "module",
   "license": "MIT",
