@@ -2664,6 +2664,11 @@
             "items": {
               "$ref": "#/components/schemas/ApprovalStatus"
             }
+          },
+          "identificationNumber": {
+            "type": "string",
+            "description": "Filter documents by counterparty identification number (IČO)",
+            "nullable": true
           }
         }
       },
@@ -4677,6 +4682,10 @@
             "type": "string",
             "description": "ID of order",
             "example": "Dod. 586683"
+          },
+          "deliveryNoteNumber": {
+            "type": "string",
+            "description": "Delivery note number"
           },
           "issuedAt": {
             "type": "string",

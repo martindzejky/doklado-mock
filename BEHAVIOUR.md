@@ -15,7 +15,7 @@ Every statement below is tagged:
 - **Unknown.** Neither, flagged so it is not mistaken for fact.
 
 A snapshot of their document lives in `spec/swagger.json` (info.version still
-`2025.2.18`, fetched 2026-09-19 from <https://api-doc.doklado.sk/swagger.json>).
+`2025.2.18`, fetched 2026-10-13 from <https://api-doc.doklado.sk/swagger.json>).
 A scheduled job re-fetches it and fails when the bytes change, so drift becomes
 visible.
 
@@ -26,6 +26,13 @@ document grew by eight paths and twenty schemas. Those additions, and the
 listing-filter edits, are **Inferred** from the spec. They are not observed
 production behaviour. Details sit with the endpoints they belong to. The mock
 still implements only the two issuing routes.
+
+The 2026-10-13 refresh adds two fields, both **Inferred** from the spec:
+`GetDocumentsV2InputParameters.identificationNumber`, an optional nullable string
+filter for the counterparty's IČO, and `InvoiceV2.deliveryNoteNumber`, a string
+containing the delivery note number. No paths or existing fields changed, and
+the two mock endpoints and their referenced schemas are unchanged. These additions
+have not been confirmed against production and require no mock behaviour change.
 
 ## Scope
 
