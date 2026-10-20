@@ -15,7 +15,7 @@ Every statement below is tagged:
 - **Unknown.** Neither, flagged so it is not mistaken for fact.
 
 A snapshot of their document lives in `spec/swagger.json` (info.version still
-`2025.2.18`, fetched 2026-10-13 from <https://api-doc.doklado.sk/swagger.json>).
+`2025.2.18`, fetched 2026-10-20 from <https://api-doc.doklado.sk/swagger.json>).
 A scheduled job re-fetches it and fails when the bytes change, so drift becomes
 visible.
 
@@ -33,6 +33,13 @@ filter for the counterparty's IČO, and `InvoiceV2.deliveryNoteNumber`, a string
 containing the delivery note number. No paths or existing fields changed, and
 the two mock endpoints and their referenced schemas are unchanged. These additions
 have not been confirmed against production and require no mock behaviour change.
+
+The 2026-10-20 refresh adds `POST /v3/organization/manage/partner/upsert` and
+four optional nullable accounting-import collections: `approvalProcesses`,
+`economicObjects`, `paymentMethods`, and `purchasingRepresentatives`. These
+additions and their five new schemas are **Inferred** from the spec, not confirmed
+against production. Existing paths and fields, including the two mock endpoints
+and their referenced schemas, are unchanged. No mock behaviour change is needed.
 
 ## Scope
 

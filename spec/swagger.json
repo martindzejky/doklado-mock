@@ -802,6 +802,84 @@
         }
       }
     },
+    "/v3/organization/manage/partner/upsert": {
+      "post": {
+        "summary": "upsert organization partners",
+        "tags": [
+          "Organization"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for upserting organization partners from externaly systems with externalIdentificator",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataOrganizationManagePartnerUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponseSimple"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "partners": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "accountingSoftId": {
+                                    "type": "string",
+                                    "description": "Provided accountingSoftwareInternalId"
+                                  },
+                                  "success": {
+                                    "type": "boolean",
+                                    "description": "true for created partner, false with code DOCUMENT_ALREADY_EXISTS if accountingSoftwareInternalId already exists in the organization"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
     "/v1/documents/getAttachments": {
       "post": {
         "summary": "Get attachments public download urls",
@@ -1661,6 +1739,34 @@
                 "items": {
                   "$ref": "#/components/schemas/ClassificationVatKVV2"
                 }
+              },
+              "purchasingRepresentatives": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "$ref": "#/components/schemas/PurchasingRepresentativeV2"
+                }
+              },
+              "approvalProcesses": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "$ref": "#/components/schemas/ApprovalProcessV2"
+                }
+              },
+              "paymentMethods": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "$ref": "#/components/schemas/PaymentMethodV2"
+                }
+              },
+              "economicObjects": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "$ref": "#/components/schemas/EconomicObjectV2"
+                }
               }
             }
           }
@@ -1865,6 +1971,107 @@
         "required": [
           "organizationId",
           "accountingSettingType"
+        ]
+      },
+      "InputDataOrganizationManagePartnerUpsert": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "organizationId": {
+                "type": "string",
+                "description": "Organization ID (IČO)"
+              },
+              "partners": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Partner name"
+                    },
+                    "accountingSoftwareInternalId": {
+                      "type": "string",
+                      "description": "Unique identifier used as upsert key inside the organization"
+                    },
+                    "partnerCountryCode": {
+                      "type": "string",
+                      "description": "ISO 3166-2 country code (e.g. sk, cz) or other"
+                    },
+                    "partnerType": {
+                      "type": "string",
+                      "enum": [
+                        "customer",
+                        "supplier"
+                      ]
+                    },
+                    "ico": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "dic": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "icDph": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "vatPayer": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
+                    "streetName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "propertyRegistrationNumber": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "postalCode": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "buildingNumber": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "municipality": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "country": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "nonCorporateEntity": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
+                    "orderNumberMandatory": {
+                      "type": "boolean",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "accountingSoftwareInternalId",
+                    "partnerCountryCode",
+                    "partnerType"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "organizationId",
+          "partners"
         ]
       },
       "PublicOrganization": {
@@ -2340,6 +2547,86 @@
           },
           "code": {
             "example": "EXIT",
+            "type": "string"
+          }
+        }
+      },
+      "PurchasingRepresentativeV2": {
+        "type": "object",
+        "nullable": true,
+        "description": "Referent nakupu",
+        "properties": {
+          "accountingSoftwareId": {
+            "type": "string",
+            "description": "Parameter for pairing accounting setting with existing data in organization",
+            "example": 1
+          },
+          "value": {
+            "example": "purchasing representative",
+            "type": "string"
+          },
+          "code": {
+            "example": "REF",
+            "type": "string"
+          }
+        }
+      },
+      "ApprovalProcessV2": {
+        "type": "object",
+        "nullable": true,
+        "description": "Schvalovaci proces",
+        "properties": {
+          "accountingSoftwareId": {
+            "type": "string",
+            "description": "Parameter for pairing accounting setting with existing data in organization",
+            "example": 1
+          },
+          "value": {
+            "example": "approval process",
+            "type": "string"
+          },
+          "code": {
+            "example": "AP1",
+            "type": "string"
+          }
+        }
+      },
+      "PaymentMethodV2": {
+        "type": "object",
+        "nullable": true,
+        "description": "Spôsob úhrady",
+        "properties": {
+          "accountingSoftwareId": {
+            "type": "string",
+            "description": "Parameter for pairing accounting setting with existing data in organization",
+            "example": 1
+          },
+          "value": {
+            "example": "Transferred",
+            "type": "string"
+          },
+          "code": {
+            "example": "111",
+            "type": "string"
+          }
+        }
+      },
+      "EconomicObjectV2": {
+        "type": "object",
+        "nullable": true,
+        "description": "Hospodársky objekt",
+        "properties": {
+          "accountingSoftwareId": {
+            "type": "string",
+            "description": "Parameter for pairing accounting setting with existing data in organization",
+            "example": 1
+          },
+          "value": {
+            "example": "Main activity",
+            "type": "string"
+          },
+          "code": {
+            "example": "21",
             "type": "string"
           }
         }
