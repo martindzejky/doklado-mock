@@ -754,6 +754,74 @@
         }
       }
     },
+    "/v3/organization/manage/list-members": {
+      "post": {
+        "summary": "list organization members",
+        "tags": [
+          "Organization"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "description": "Input parameters for listing organization members",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDataOrganizationManageListMembers"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponseSimple"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "members": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/PublicOrganizationMemberResponse"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {}
+          },
+          "404": {
+            "description": "Not found",
+            "content": {}
+          },
+          "500": {
+            "description": "Server invocation error",
+            "content": {}
+          }
+        }
+      }
+    },
     "/v3/organization/manage/accounting-settings/sync": {
       "post": {
         "summary": "accounting settings sync",
@@ -1934,6 +2002,23 @@
           "users"
         ]
       },
+      "InputDataOrganizationManageListMembers": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "organizationId": {
+                "type": "string",
+                "description": "Organization ID (IČO)"
+              }
+            }
+          }
+        },
+        "required": [
+          "organizationId"
+        ]
+      },
       "InputDataOrganizationManageAccountingSettingsSync": {
         "type": "object",
         "properties": {
@@ -2114,6 +2199,32 @@
           },
           "success": {
             "type": "boolean"
+          }
+        }
+      },
+      "PublicOrganizationMemberResponse": {
+        "type": "object",
+        "properties": {
+          "userEmail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "surname": {
+            "type": "string"
+          },
+          "organizationRole": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "accountant",
+              "employee",
+              "desktop_agent",
+              "auditor",
+              "uploader",
+              "tb_user"
+            ]
           }
         }
       },
@@ -3804,6 +3915,19 @@
           "discount": {
             "$ref": "#/components/schemas/Discount",
             "nullable": true
+          },
+          "itemType": {
+            "$ref": "#/components/schemas/InvoiceItemType",
+            "nullable": true
+          },
+          "isTaxExempt": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "mimo dph"
+          },
+          "isReverseCharge": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
@@ -3884,6 +4008,13 @@
             "nullable": true
           }
         }
+      },
+      "InvoiceItemType": {
+        "type": "string",
+        "description": "advance_payment - uhradená záloha",
+        "enum": [
+          "advance_payment"
+        ]
       },
       "OSSServiceType": {
         "type": "string",
@@ -4667,6 +4798,10 @@
             "description": "Email of user who created document."
           },
           "invoiceNumber": {
+            "type": "string",
+            "description": "Receipt invoice number"
+          },
+          "invoiceNumberV2": {
             "type": "string",
             "description": "Receipt invoice number"
           },

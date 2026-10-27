@@ -15,7 +15,7 @@ Every statement below is tagged:
 - **Unknown.** Neither, flagged so it is not mistaken for fact.
 
 A snapshot of their document lives in `spec/swagger.json` (info.version still
-`2025.2.18`, fetched 2026-10-20 from <https://api-doc.doklado.sk/swagger.json>).
+`2025.2.18`, fetched 2026-10-27 from <https://api-doc.doklado.sk/swagger.json>).
 A scheduled job re-fetches it and fails when the bytes change, so drift becomes
 visible.
 
@@ -40,6 +40,19 @@ four optional nullable accounting-import collections: `approvalProcesses`,
 additions and their five new schemas are **Inferred** from the spec, not confirmed
 against production. Existing paths and fields, including the two mock endpoints
 and their referenced schemas, are unchanged. No mock behaviour change is needed.
+
+The 2026-10-27 refresh adds `POST /v3/organization/manage/list-members` and
+`DocumentV2.invoiceNumberV2` (receipt invoice number). It also adds three optional
+nullable fields to `PublicIssueInvoiceItem`: `itemType` (the new `InvoiceItemType`
+enum, containing only `advance_payment`), `isTaxExempt`, and `isReverseCharge`
+(booleans). These additions are **Inferred** from the spec, not confirmed against
+production. Existing fields and the PDF endpoint are unchanged.
+
+The mock does not implement member listing or receipt retrieval. The three new
+item fields are unsupported: they are logged as unknown and ignored. Item pricing
+still uses `vatRate`, and `vatSummary.isTaxExempt` remains false. The spec does not
+establish their effects on calculations or PDFs; those behaviours remain
+**Unknown**. This refresh records the additions without changing mock behaviour.
 
 ## Scope
 

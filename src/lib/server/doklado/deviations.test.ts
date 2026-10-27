@@ -3,7 +3,8 @@
  *
  * Does not hit HTTP handlers. Asserts that the catalogues still exist, that
  * the vendored snapshot still contains the recorded spec lies, and that the
- * issue/PDF known-field lists still match the snapshot request schemas. A spec
+ * issue/PDF known-field lists plus documented unsupported fields still match
+ * the snapshot request schemas. A spec
  * "fix" of data.document, Content-Type, APP_ORGANIZATION_NOT_FOUND_CODE, or
  * documenting APP_DOCUMENT_ALREADY_EXISTS must fail here so someone updates
  * the catalogue. Issuing and PDF behaviour itself is in handlers.test.ts.
@@ -109,7 +110,13 @@ describe('vendored issue and PDF schemas', () => {
       nestedProperties('InputParametersIssueInvoice', 'paymentInfo'),
     ).toEqual([...ISSUE_KNOWN_KEYS.paymentInfo].sort());
     expect(schemaProperties('PublicIssueInvoiceItem')).toEqual(
-      [...ISSUE_KNOWN_KEYS.item].sort(),
+      [
+        ...ISSUE_KNOWN_KEYS.item,
+        // BEHAVIOUR.md 2026-10-27 refresh: documented, ignored by the mock.
+        'itemType',
+        'isTaxExempt',
+        'isReverseCharge',
+      ].sort(),
     );
   });
 
