@@ -19,48 +19,29 @@ A snapshot of their document lives in `spec/swagger.json` (info.version still
 A scheduled job re-fetches it and fails when the bytes change, so drift becomes
 visible.
 
-The 2026-09-19 refresh did not change `POST /v1/documents/invoice-issue`,
-`POST /v1/documents/get-invoice-pdf`, or any schema those two `$ref`. Shared
-paths other than two listing request bodies were also unchanged. The live
-document grew by eight paths and twenty schemas. Those additions, and the
-listing-filter edits, are **Inferred** from the spec. They are not observed
-production behaviour. Details sit with the endpoints they belong to. The mock
-still implements only the two issuing routes.
+### Published spec additions
 
-The 2026-10-13 refresh adds two fields, both **Inferred** from the spec:
-`GetDocumentsV2InputParameters.identificationNumber`, an optional nullable string
-filter for the counterparty's IČO, and `InvoiceV2.deliveryNoteNumber`, a string
-containing the delivery note number. No paths or existing fields changed, and
-the two mock endpoints and their referenced schemas are unchanged. These additions
-have not been confirmed against production and require no mock behaviour change.
+**Inferred**, not confirmed against production. Refresh history lives in Git;
+this section records the current implications for the mock. Listing filters and
+other endpoint-specific findings are documented in their sections below.
 
-The 2026-10-20 refresh adds `POST /v3/organization/manage/partner/upsert` and
-four optional nullable accounting-import collections: `approvalProcesses`,
-`economicObjects`, `paymentMethods`, and `purchasingRepresentatives`. These
-additions and their five new schemas are **Inferred** from the spec, not confirmed
-against production. Existing paths and fields, including the two mock endpoints
-and their referenced schemas, are unchanged. No mock behaviour change is needed.
+- `GetDocumentsV2InputParameters.identificationNumber` filters by counterparty IČO
+  (optional nullable string). `InvoiceV2.deliveryNoteNumber` is a string;
+  `DocumentV2.invoiceNumberV2` is the receipt invoice number.
+- `PublicIssueInvoiceItem` accepts optional nullable `itemType` (`advance_payment`),
+  `isTaxExempt`, and `isReverseCharge` (booleans). The mock logs these as unknown and ignores
+  them. Pricing still uses `vatRate`; `vatSummary.isTaxExempt` remains false.
+  Their effects on production calculations and PDFs are **Unknown**.
+- Accounting imports accept optional nullable `approvalProcesses`, `economicObjects`,
+  `paymentMethods`, and `purchasingRepresentatives` collections.
+- Organisation management includes `POST /v3/organization/manage/partner/upsert`
+  and `POST /v3/organization/manage/list-members`. These remain unimplemented.
+- `InputParametersBankTransactions.limit` is optional and nullable (integer, 0–50,
+  default 50). The spec says 0 returns balances without transactions.
+- The spec labels its servers `PROD` and `SANDBOX`. Sandbox access and behaviour
+  remain **Unknown**.
 
-The 2026-10-27 refresh adds `POST /v3/organization/manage/list-members` and
-`DocumentV2.invoiceNumberV2` (receipt invoice number). It also adds three optional
-nullable fields to `PublicIssueInvoiceItem`: `itemType` (the new `InvoiceItemType`
-enum, containing only `advance_payment`), `isTaxExempt`, and `isReverseCharge`
-(booleans). These additions are **Inferred** from the spec, not confirmed against
-production. Existing fields and the PDF endpoint are unchanged.
-
-The mock does not implement member listing or receipt retrieval. The three new
-item fields are unsupported: they are logged as unknown and ignored. Item pricing
-still uses `vatRate`, and `vatSummary.isTaxExempt` remains false. The spec does not
-establish their effects on calculations or PDFs; those behaviours remain
-**Unknown**. This refresh records the additions without changing mock behaviour.
-
-The 2026-11-03 refresh adds optional nullable `InputParametersBankTransactions.limit`
-(integer, 0–50, default 50). The spec says 0 returns only account balances, without
-transactions. It also labels the existing server `PROD` and adds a server labelled
-`SANDBOX`. These additions are **Inferred** from the spec; sandbox access and
-behaviour remain **Unknown**. No paths or existing fields changed, and the two mock
-endpoints and their referenced schemas are unchanged. No mock behaviour change is
-needed.
+These additions do not establish new mock behaviour.
 
 ## Scope
 
