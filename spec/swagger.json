@@ -15,7 +15,12 @@
   ],
   "servers": [
     {
-      "url": "https://api-gateway-prod-europe-west-1-7epuecvu.ew.gateway.dev"
+      "url": "https://api-gateway-prod-europe-west-1-7epuecvu.ew.gateway.dev",
+      "description": "PROD"
+    },
+    {
+      "url": "https://doklado-einvoice-sandbox-cga5r5w8.ew.gateway.dev",
+      "description": "SANDBOX"
     }
   ],
   "paths": {
@@ -5338,6 +5343,13 @@
             "nullable": true,
             "description": "Sort in descending order. Defaults to ascending.",
             "example": false
+          },
+          "limit": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 50,
+            "description": "Maximum number of bank transactions to return (1-50). Set to 0 to export only the available balances of the bank accounts (without transactions). Defaults to 50."
           },
           "searchAfter": {
             "type": "array",

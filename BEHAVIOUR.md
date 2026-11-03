@@ -3,8 +3,8 @@
 What the real Doklado API does, as far as we know it. This is the specification the
 mock is built against.
 
-Doklado has no sandbox, so the only ways to learn its behaviour are their OpenAPI
-document and calls against production. Both were used. Their spec turned out to be
+When this research began, no sandbox was known, so we used their OpenAPI
+document and calls against production. Their spec turned out to be
 wrong in several places, so where the two disagree, **observed behaviour wins**.
 
 Every statement below is tagged:
@@ -15,7 +15,7 @@ Every statement below is tagged:
 - **Unknown.** Neither, flagged so it is not mistaken for fact.
 
 A snapshot of their document lives in `spec/swagger.json` (info.version still
-`2025.2.18`, fetched 2026-10-27 from <https://api-doc.doklado.sk/swagger.json>).
+`2025.2.18`, fetched 2026-11-03 from <https://api-doc.doklado.sk/swagger.json>).
 A scheduled job re-fetches it and fails when the bytes change, so drift becomes
 visible.
 
@@ -53,6 +53,14 @@ item fields are unsupported: they are logged as unknown and ignored. Item pricin
 still uses `vatRate`, and `vatSummary.isTaxExempt` remains false. The spec does not
 establish their effects on calculations or PDFs; those behaviours remain
 **Unknown**. This refresh records the additions without changing mock behaviour.
+
+The 2026-11-03 refresh adds optional nullable `InputParametersBankTransactions.limit`
+(integer, 0–50, default 50). The spec says 0 returns only account balances, without
+transactions. It also labels the existing server `PROD` and adds a server labelled
+`SANDBOX`. These additions are **Inferred** from the spec; sandbox access and
+behaviour remain **Unknown**. No paths or existing fields changed, and the two mock
+endpoints and their referenced schemas are unchanged. No mock behaviour change is
+needed.
 
 ## Scope
 
